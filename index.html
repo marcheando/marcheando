@@ -918,11 +918,12 @@
           {/* Barra de navegación fija abajo */}
           <div style={{
             position: "fixed", bottom: 0, left: 0, right: 0,
-            background: "linear-gradient(to top, #0a0604, #120c04)",
-            borderTop: "1px solid #1e1008",
+            background: "linear-gradient(to top, #0d0604, #150e05)",
+            borderTop: "1px solid #c9a84c",
             display: "flex", justifyContent: "space-around", alignItems: "center",
             padding: "10px 0 16px",
             zIndex: 50,
+            boxShadow: "0 -4px 20px rgba(0,0,0,0.5)",
           }}>
             {[
               { id: "escuchar", label: "Escuchar", icon: "🎙" },
@@ -930,19 +931,22 @@
               { id: "bandas", label: "Bandas", icon: "🎺" }
             ].map(t => (
               <button key={t.id} onClick={() => setTab(t.id)} style={{
-                background: "none", border: "none", cursor: "pointer",
-                display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
-                padding: "6px 20px",
+                background: tab === t.id ? "rgba(201,168,76,0.12)" : "none",
+                border: "none", cursor: "pointer",
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+                padding: "8px 24px",
+                borderRadius: 12,
+                transition: "all 0.2s",
               }}>
-                <span style={{ fontSize: 22 }}>{t.icon}</span>
+                <span style={{ fontSize: 24 }}>{t.icon}</span>
                 <span style={{
-                  fontSize: 10, letterSpacing: "0.05em",
-                  color: tab === t.id ? "#c9a84c" : "#4a3020",
+                  fontSize: 11, letterSpacing: "0.05em",
+                  color: tab === t.id ? "#f0d080" : "#8a6a3a",
                   fontFamily: "'Crimson Text', serif",
                   fontWeight: tab === t.id ? 700 : 400,
                   textTransform: "uppercase",
                 }}>{t.label}</span>
-                {tab === t.id && <div style={{ width: 20, height: 2, background: "#c9a84c", borderRadius: 1 }} />}
+                {tab === t.id && <div style={{ width: 24, height: 2, background: "linear-gradient(90deg, #c9a84c, #f0d080)", borderRadius: 1 }} />}
               </button>
             ))}
           </div>
