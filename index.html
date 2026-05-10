@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Marcheando - Reconocimiento de Marchas Procesionales</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Crimson+Text:ital@0;1&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0d0804; color: #d4b060; font-family: 'Crimson Text', Georgia, serif; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0d0804; }
+    ::-webkit-scrollbar-thumb { background: #3a2510; border-radius: 3px; }
+    input::placeholder { color: #4a3020; }
+    select option { background: #1a1008; color: #d4b060; }
+    @keyframes pulse-gold { 0%, 100% { box-shadow: 0 0 0 0 rgba(201,168,76,0.4); } 50% { box-shadow: 0 0 0 20px rgba(201,168,76,0); } }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes wave0 { from { height: 6px; } to { height: 20px; } }
+    @keyframes wave1 { from { height: 6px; } to { height: 28px; } }
+    @keyframes wave2 { from { height: 6px; } to { height: 35px; } }
+    @keyframes wave3 { from { height: 6px; } to { height: 22px; } }
+    @keyframes wave4 { from { height: 6px; } to { height: 38px; } }
+    @keyframes wave5 { from { height: 6px; } to { height: 18px; } }
+    @keyframes wave6 { from { height: 6px; } to { height: 30px; } }
+    @keyframes wave7 { from { height: 6px; } to { height: 25px; } }
+    @keyframes wave8 { from { height: 6px; } to { height: 38px; } }
+    @keyframes wave9 { from { height: 6px; } to { height: 16px; } }
+    @keyframes wave10 { from { height: 6px; } to { height: 32px; } }
+    @keyframes wave11 { from { height: 6px; } to { height: 24px; } }
+    .wave-bar { width: 4px; border-radius: 4px; background: linear-gradient(to top, #c9a84c, #f0d080); height: 6px; transition: height 0.15s ease; }
+    .wave-bar.active-0 { animation: wave0 0.4s ease-in-out infinite alternate; }
+    .wave-bar.active-1 { animation: wave1 0.47s ease-in-out infinite alternate; }
+    .wave-bar.active-2 { animation: wave2 0.54s ease-in-out infinite alternate; }
+    .wave-bar.active-3 { animation: wave3 0.61s ease-in-out infinite alternate; }
+    .wave-bar.active-4 { animation: wave4 0.68s ease-in-out infinite alternate; }
+    .wave-bar.active-5 { animation: wave5 0.75s ease-in-out infinite alternate; }
+    .wave-bar.active-6 { animation: wave6 0.82s ease-in-out infinite alternate; }
+    .wave-bar.active-7 { animation: wave7 0.89s ease-in-out infinite alternate; }
+    .wave-bar.active-8 { animation: wave8 0.96s ease-in-out infinite alternate; }
+    .wave-bar.active-9 { animation: wave9 1.03s ease-in-out infinite alternate; }
+    .wave-bar.active-10 { animation: wave10 1.1s ease-in-out infinite alternate; }
+    .wave-bar.active-11 { animation: wave11 1.17s ease-in-out infinite alternate; }
+    .marcha-card { background: linear-gradient(135deg, #1a1008 0%, #2a1a0a 100%); border: 1px solid #3a2510; border-radius: 12px; padding: 18px 22px; cursor: pointer; transition: all 0.25s ease; position: relative; overflow: hidden; }
+    .marcha-card:hover { border-color: #c9a84c; transform: translateY(-2px); box-shadow: 0 8px 32px rgba(201,168,76,0.15); }
+    .btn-tab { padding: 10px 28px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-family: 'Crimson Text', serif; transition: all 0.2s; }
+    .btn-mic { width: 120px; height: 120px; border-radius: 50%; cursor: pointer; font-size: 42px; transition: all 0.3s; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
+    .spinner { width: 36px; height: 36px; border: 3px solid #3a2510; border-top: 3px solid #c9a84c; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(4px); }
+    .modal { background: linear-gradient(160deg, #1a1008 0%, #2d1a08 60%, #1a1008 100%); border: 1px solid #c9a84c; border-radius: 20px; padding: 36px 40px; max-width: 480px; width: 100%; box-shadow: 0 0 80px rgba(201,168,76,0.2); position: relative; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useRef } = React;
+
+    const MARCHAS_DB = [
+      // --- Banda de CC y TT Real Cuerpo de Bomberos (Málaga) ---
+      { id: 1, titulo: "Al pobre Zaragoza", tipo: "CCT", banda: "Banda de CC y TT Real Cuerpo de Bomberos", cofradia: "Varias", compositor: "Alberto Escámez", año: 0, ciudad: "Málaga", descripcion: "Marcha clásica de Alberto Escámez del repertorio de la Banda del Real Cuerpo de Bomberos de Málaga." },
+      { id: 2, titulo: "Consolación y Lágrimas", tipo: "CCT", banda: "Banda de CC y TT Real Cuerpo de Bomberos", cofradia: "Varias", compositor: "Alberto Escámez", año: 0, ciudad: "Málaga", descripcion: "Marcha clásica de Alberto Escámez, una de las joyas del repertorio de los Bomberos de Málaga." },
+      { tipo: "BM", id: 3, titulo: "Cristo de la Buena Muerte", tipo: "CCT", banda: "Banda de CC y TT Real Cuerpo de Bomberos", cofradia: "Cristo de la Buena Muerte", compositor: "Alberto Escámez", año: 0, ciudad: "Málaga", descripcion: "Marcha dedicada al Cristo de la Buena Muerte, compuesta por Alberto Escámez para los Bomberos de Málaga." },
+      { id: 4, titulo: "Cristo de la Sangre", tipo: "CCT", banda: "Banda de CC y TT Real Cuerpo de Bomberos", cofradia: "Cristo de la Sangre", compositor: "Alberto Escámez", año: 0, ciudad: "Málaga", descripcion: "Marcha solemne de Alberto Escámez dedicada al Cristo de la Sangre." },
+      { id: 5, titulo: "Cristo del Amor", tipo: "CCT", banda: "Banda de CC y TT Real Cuerpo de Bomberos", cofradia: "Cristo del Amor", compositor: "Alberto Escámez", año: 0, ciudad: "Málaga", descripcion: "La marcha más famosa de Alberto Escámez, joya del repertorio de los Bomberos de Málaga." },
+      { id: 6, titulo: "La Dolorosa", tipo: "CCT", banda: "Banda de CC y TT Real Cuerpo de Bomberos", cofradia: "Varias", compositor: "Alberto Escámez", año: 0, ciudad: "Málaga", descripcion: "Marcha clásica de Alberto Escámez del repertorio de la Banda del Real Cuerpo de Bomberos." },
+      { id: 7, titulo: "La Expiración", tipo: "CCT", banda: "Banda de CC y TT Real Cuerpo de Bomberos", cofradia: "La Expiración", compositor: "Alberto Escámez", año: 0, ciudad: "Málaga", descripcion: "Una de las marchas más emblemáticas de Alberto Escámez y de la Semana Santa malagueña." },
+      { id: 8, titulo: "La Milagrosa", tipo: "CCT", banda: "Banda de CC y TT Real Cuerpo de Bomberos", cofradia: "Varias", compositor: "Alberto Escámez", año: 0, ciudad: "Málaga", descripcion: "Marcha clásica de Alberto Escámez del repertorio de los Bomberos de Málaga." },
+      { tipo: "BM", id: 9, titulo: "Nuestro Padre Jesús Cautivo", tipo: "CCT", banda: "Banda de CC y TT Real Cuerpo de Bomberos", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "Alberto Escámez", año: 0, ciudad: "Málaga", descripcion: "Marcha dedicada al Cautivo, una de las más interpretadas por los Bomberos de Málaga." },
+      { id: 10, titulo: "Virgen del Mayor Dolor", tipo: "CCT", banda: "Banda de CC y TT Real Cuerpo de Bomberos", cofradia: "Virgen del Mayor Dolor", compositor: "Alberto Escámez", año: 0, ciudad: "Málaga", descripcion: "Marcha clásica de Alberto Escámez dedicada a la Virgen del Mayor Dolor." },
+      { id: 11, titulo: "La Esperanza", tipo: "CCT", banda: "Banda de CC y TT Real Cuerpo de Bomberos", cofradia: "Varias", compositor: "Pascual Zueco Ramos", año: 0, ciudad: "Málaga", descripcion: "Marcha de Pascual Zueco Ramos del repertorio histórico de los Bomberos de Málaga." },
+      // --- Banda de CC y TT Ntro. Padre Jesús Cautivo (Málaga) ---
+      { id: 12, titulo: "Evangelio", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "José Ignacio Fortis Pérez", año: 0, ciudad: "Málaga", descripcion: "Marcha que da nombre al primer trabajo discográfico de la banda, obra de José Ignacio Fortis Pérez." },
+      { id: 13, titulo: "75 años de fe", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "José Ignacio Fortis Pérez", año: 0, ciudad: "Málaga", descripcion: "Marcha conmemorativa compuesta por José Ignacio Fortis Pérez para el 75 aniversario de la banda." },
+      { id: 14, titulo: "¡Crucificadlo!", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "José Ignacio Fortis Pérez", año: 0, ciudad: "Málaga", descripcion: "Marcha dramática de José Ignacio Fortis Pérez del repertorio del Cautivo de Málaga." },
+      { id: 15, titulo: "Ecce Dominus", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "José Ignacio Fortis Pérez", año: 0, ciudad: "Málaga", descripcion: "Marcha procesional de José Ignacio Fortis Pérez del repertorio del Cautivo de Málaga." },
+      { id: 16, titulo: "El enviado de Dios", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "José Ignacio Fortis Pérez", año: 0, ciudad: "Málaga", descripcion: "Marcha procesional de José Ignacio Fortis Pérez del repertorio del Cautivo de Málaga." },
+      { id: 17, titulo: "He aquí el Señor", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "José Ignacio Fortis Pérez", año: 0, ciudad: "Málaga", descripcion: "Marcha procesional de José Ignacio Fortis Pérez del repertorio del Cautivo de Málaga." },
+      { id: 18, titulo: "Perdónalos", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "José Ignacio Fortis Pérez", año: 0, ciudad: "Málaga", descripcion: "Emotiva marcha inspirada en las palabras de Cristo en la cruz, del Cautivo de Málaga." },
+      { id: 19, titulo: "Ruega por nosotros", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "José Ignacio Fortis Pérez", año: 0, ciudad: "Málaga", descripcion: "Marcha procesional de José Ignacio Fortis Pérez del repertorio del Cautivo de Málaga." },
+      { id: 20, titulo: "Sacrificio", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "José Ignacio Fortis Pérez", año: 0, ciudad: "Málaga", descripcion: "Marcha de gran profundidad religiosa del Cautivo de Málaga." },
+      { id: 21, titulo: "Ante ti, Señor", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "Jorge Martín Salas", año: 0, ciudad: "Málaga", descripcion: "Marcha devocional de Jorge Martín Salas del repertorio del Cautivo de Málaga." },
+      { id: 22, titulo: "Así te rezo", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "José María Sánchez Martín", año: 0, ciudad: "Málaga", descripcion: "Marcha de gran lirismo de José María Sánchez Martín para el Cautivo de Málaga." },
+      { id: 23, titulo: "Hermano y Maestro", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "José María Sánchez Martín", año: 0, ciudad: "Málaga", descripcion: "Emotiva marcha de José María Sánchez Martín del repertorio del Cautivo de Málaga." },
+      { id: 24, titulo: "Sancta Trinitas", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "Cristóbal López Gándara", año: 0, ciudad: "Málaga", descripcion: "Marcha solemne dedicada a la Santísima Trinidad, del Cautivo de Málaga." },
+      { id: 25, titulo: "Cautivo y Esperanza", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "Francisco Moraza Cienfuegos", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Cautivo de Málaga compuesta por Francisco Moraza Cienfuegos." },
+      { id: 26, titulo: "Él", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "Miguel Ángel Jiménez Soto", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Cautivo de Málaga compuesta por Miguel Ángel Jiménez Soto." },
+      { id: 27, titulo: "En Cuerpo y Sangre", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "José Javier Anaya Hidalgo", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Cautivo de Málaga compuesta por José Javier Anaya Hidalgo." },
+      { id: 28, titulo: "Inde Gloria Mea", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "José Javier Anaya Hidalgo", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Cautivo de Málaga compuesta por José Javier Anaya Hidalgo." },
+      { id: 29, titulo: "Leyendas de un barrio", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "José Javier Anaya Hidalgo", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Cautivo de Málaga compuesta por José Javier Anaya Hidalgo." },
+      { id: 30, titulo: "Mater Dei", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "José Javier Anaya Hidalgo", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Cautivo de Málaga compuesta por José Javier Anaya Hidalgo." },
+      { tipo: "BM", id: 31, titulo: "Muéstranos Señor, tu misericordia", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "José Javier Anaya Hidalgo", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Cautivo de Málaga compuesta por José Javier Anaya Hidalgo." },
+      { id: 32, titulo: "Recuerdos al alba", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "José Javier Anaya Hidalgo", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Cautivo de Málaga compuesta por José Javier Anaya Hidalgo." },
+      { id: 33, titulo: "Tu recuerdo", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "José Javier Anaya Hidalgo", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Cautivo de Málaga compuesta por José Javier Anaya Hidalgo." },
+      { id: 34, titulo: "La tierra santa", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "Javier Cebrero Arias", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Cautivo de Málaga compuesta por Javier Cebrero Arias." },
+      { tipo: "BM", id: 35, titulo: "Mi fe en tu misericordia", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "Sergio Pastor González", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Cautivo de Málaga compuesta por Sergio Pastor González." },
+      { tipo: "BM", id: 36, titulo: "Paso al Rey de San Pablo", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "José López García", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Cautivo de Málaga compuesta por José López García." },
+      { id: 37, titulo: "Rezándote al alba", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "Sergio Pastor González", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Cautivo de Málaga compuesta por Sergio Pastor González." },
+      { id: 38, titulo: "Señor de Málaga", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "Sergio Pastor González", año: 0, ciudad: "Málaga", descripcion: "Marcha dedicada al Señor de Málaga, compuesta por Sergio Pastor González." },
+      { id: 39, titulo: "Santos Varones", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "Alejandro Fargas Gavira", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Cautivo de Málaga compuesta por Alejandro Fargas Gavira." },
+      { id: 40, titulo: "Saudade", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "Alejandro Fargas Gavira", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Cautivo de Málaga compuesta por Alejandro Fargas Gavira." },
+      { tipo: "BM", id: 41, titulo: "Soledad Madre Centenaria", tipo: "CCT", banda: "Banda de CC y TT Ntro. Padre Jesús Cautivo", cofradia: "Nuestro Padre Jesús Cautivo", compositor: "Alejandro Fargas Gavira", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Cautivo de Málaga compuesta por Alejandro Fargas Gavira." },
+      // --- Banda de CC y TT Archicofradía del Paso y la Esperanza (Málaga) ---
+      { id: 42, titulo: "Agonía", tipo: "CCT", banda: "Banda de CC y TT Archicofradía del Paso y la Esperanza", cofradia: "Archicofradía del Paso y la Esperanza", compositor: "Alfonso López Cortés", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Paso y la Esperanza compuesta por Alfonso López Cortés." },
+      { id: 43, titulo: "Caminemos juntos", tipo: "CCT", banda: "Banda de CC y TT Archicofradía del Paso y la Esperanza", cofradia: "Archicofradía del Paso y la Esperanza", compositor: "Alfonso López Cortés", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Paso y la Esperanza compuesta por Alfonso López Cortés." },
+      { id: 44, titulo: "El día del Señor", tipo: "CCT", banda: "Banda de CC y TT Archicofradía del Paso y la Esperanza", cofradia: "Archicofradía del Paso y la Esperanza", compositor: "Alfonso López Cortés", año: 2024, ciudad: "Málaga", descripcion: "Estreno reciente del director Alfonso López Cortés para el Paso y la Esperanza de Málaga." },
+      { id: 45, titulo: "Humildad", tipo: "CCT", banda: "Banda de CC y TT Archicofradía del Paso y la Esperanza", cofradia: "Archicofradía del Paso y la Esperanza", compositor: "Alfonso López Cortés", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Paso y la Esperanza compuesta por Alfonso López Cortés." },
+      { id: 46, titulo: "La última cena", tipo: "CCT", banda: "Banda de CC y TT Archicofradía del Paso y la Esperanza", cofradia: "Archicofradía del Paso y la Esperanza", compositor: "Alfonso López Cortés", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Paso y la Esperanza compuesta por Alfonso López Cortés." },
+      { id: 47, titulo: "Mi despedida", tipo: "CCT", banda: "Banda de CC y TT Archicofradía del Paso y la Esperanza", cofradia: "Archicofradía del Paso y la Esperanza", compositor: "Alfonso López Cortés", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Paso y la Esperanza compuesta por Alfonso López Cortés." },
+      { id: 48, titulo: "Mi Esperanza", tipo: "CCT", banda: "Banda de CC y TT Archicofradía del Paso y la Esperanza", cofradia: "Archicofradía del Paso y la Esperanza", compositor: "Alfonso López Cortés", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Paso y la Esperanza compuesta por Alfonso López Cortés." },
+      { id: 49, titulo: "Nuestra Oración", tipo: "CCT", banda: "Banda de CC y TT Archicofradía del Paso y la Esperanza", cofradia: "Archicofradía del Paso y la Esperanza", compositor: "Alfonso López Cortés", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Paso y la Esperanza compuesta por Alfonso López Cortés." },
+      { id: 50, titulo: "Pasión", tipo: "CCT", banda: "Banda de CC y TT Archicofradía del Paso y la Esperanza", cofradia: "Archicofradía del Paso y la Esperanza", compositor: "Alfonso López Cortés", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Paso y la Esperanza compuesta por Alfonso López Cortés." },
+      { id: 51, titulo: "Siervos de tu Humildad", tipo: "CCT", banda: "Banda de CC y TT Archicofradía del Paso y la Esperanza", cofradia: "Archicofradía del Paso y la Esperanza", compositor: "Alfonso López Cortés", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Paso y la Esperanza compuesta por Alfonso López Cortés." },
+      { tipo: "BM", id: 52, titulo: "Todos los caminos llevan a la Esperanza", tipo: "CCT", banda: "Banda de CC y TT Archicofradía del Paso y la Esperanza", cofradia: "Archicofradía del Paso y la Esperanza", compositor: "Alfonso López Cortés", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Paso y la Esperanza compuesta por Alfonso López Cortés." },
+      { id: 53, titulo: "Un solo corazón", tipo: "CCT", banda: "Banda de CC y TT Archicofradía del Paso y la Esperanza", cofradia: "Archicofradía del Paso y la Esperanza", compositor: "Alfonso López Cortés", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Paso y la Esperanza compuesta por Alfonso López Cortés." },
+      { tipo: "BM", id: 54, titulo: "Y nunca perderte, Esperanza", tipo: "CCT", banda: "Banda de CC y TT Archicofradía del Paso y la Esperanza", cofradia: "Archicofradía del Paso y la Esperanza", compositor: "Nicolás Turienzo", año: 2018, ciudad: "Málaga", descripcion: "Marcha de gran devoción mariana compuesta por Nicolás Turienzo para el Paso y la Esperanza." },
+      { id: 55, titulo: "Bendícenos", tipo: "CCT", banda: "Banda de CC y TT Archicofradía del Paso y la Esperanza", cofradia: "Archicofradía del Paso y la Esperanza", compositor: "Manuel Otero Rodríguez", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Paso y la Esperanza compuesta por Manuel Otero Rodríguez." },
+      { id: 56, titulo: "Compasión", tipo: "CCT", banda: "Banda de CC y TT Archicofradía del Paso y la Esperanza", cofradia: "Archicofradía del Paso y la Esperanza", compositor: "Javier Cebrero Arias", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Paso y la Esperanza compuesta por Javier Cebrero Arias." },
+      { tipo: "BM", id: 57, titulo: "De Vuelta a Santa Catalina", tipo: "CCT", banda: "Banda de CC y TT Archicofradía del Paso y la Esperanza", cofradia: "Archicofradía del Paso y la Esperanza", compositor: "José Manuel Sánchez Crespillo", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Paso y la Esperanza compuesta por José Manuel Sánchez Crespillo." },
+      { id: 58, titulo: "Domingo de Corpus", tipo: "CCT", banda: "Banda de CC y TT Archicofradía del Paso y la Esperanza", cofradia: "Archicofradía del Paso y la Esperanza", compositor: "Alberto Zumaquero Sánchez", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Paso y la Esperanza compuesta por Alberto Zumaquero Sánchez." },
+      { id: 59, titulo: "El Sueño", tipo: "CCT", banda: "Banda de CC y TT Archicofradía del Paso y la Esperanza", cofradia: "Archicofradía del Paso y la Esperanza", compositor: "Javier Cebrero Arias", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Paso y la Esperanza compuesta por Javier Cebrero Arias." },
+      { id: 60, titulo: "Jesús Lacerado", tipo: "CCT", banda: "Banda de CC y TT Archicofradía del Paso y la Esperanza", cofradia: "Archicofradía del Paso y la Esperanza", compositor: "Óscar Navarro", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Paso y la Esperanza compuesta por Óscar Navarro." },
+      { id: 61, titulo: "Mi Amor en tu Corona", tipo: "CCT", banda: "Banda de CC y TT Archicofradía del Paso y la Esperanza", cofradia: "Archicofradía del Paso y la Esperanza", compositor: "Alberto Zumaquero Sánchez", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Paso y la Esperanza compuesta por Alberto Zumaquero Sánchez." },
+      { id: 62, titulo: "Ora Pro Nobis", tipo: "CCT", banda: "Banda de CC y TT Archicofradía del Paso y la Esperanza", cofradia: "Archicofradía del Paso y la Esperanza", compositor: "Alberto Zumaquero Sánchez", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Paso y la Esperanza compuesta por Alberto Zumaquero Sánchez." },
+      { id: 63, titulo: "Santa Caridad", tipo: "CCT", banda: "Banda de CC y TT Archicofradía del Paso y la Esperanza", cofradia: "Archicofradía del Paso y la Esperanza", compositor: "Alberto Zumaquero Sánchez", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Paso y la Esperanza compuesta por Alberto Zumaquero Sánchez." },
+      { tipo: "BM", id: 64, titulo: "Todo un barrio a tus pies", tipo: "CCT", banda: "Banda de CC y TT Archicofradía del Paso y la Esperanza", cofradia: "Archicofradía del Paso y la Esperanza", compositor: "Alberto Zumaquero Sánchez", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Paso y la Esperanza compuesta por Alberto Zumaquero Sánchez." },
+      { id: 65, titulo: "Tras de ti Simón", tipo: "CCT", banda: "Banda de CC y TT Archicofradía del Paso y la Esperanza", cofradia: "Archicofradía del Paso y la Esperanza", compositor: "Alberto Zumaquero Sánchez", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Paso y la Esperanza compuesta por Alberto Zumaquero Sánchez." },
+      { tipo: "BM", id: 66, titulo: "Y el pueblo eligió a Barrabás", tipo: "CCT", banda: "Banda de CC y TT Archicofradía del Paso y la Esperanza", cofradia: "Archicofradía del Paso y la Esperanza", compositor: "Alberto Zumaquero Sánchez", año: 0, ciudad: "Málaga", descripcion: "Marcha del repertorio del Paso y la Esperanza compuesta por Alberto Zumaquero Sánchez." },
+      // --- Banda de CC y TT Ntra. Sra. de la Victoria - Las Cigarreras (Sevilla) ---
+      { id: 67, titulo: "Azotes", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Jorge Martín Puerto", año: 0, ciudad: "Sevilla", descripcion: "Marcha dedicada a la Hermandad de la Sagrada Columna y Azotes, obra de Jorge Martín Puerto." },
+      { id: 68, titulo: "Maestro", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Dionisio Buñuel", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de Las Cigarreras compuesta por Dionisio Buñuel." },
+      { id: 69, titulo: "Réquiem", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Bienvenido Puelles Oliver", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de Las Cigarreras compuesta por Bienvenido Puelles Oliver." },
+      { id: 70, titulo: "Virgen de la Salud", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "San Gonzalo", compositor: "Bienvenido Puelles Oliver", año: 0, ciudad: "Sevilla", descripcion: "Marcha dedicada a la Virgen de la Salud de San Gonzalo, compuesta por Bienvenido Puelles Oliver." },
+      { id: 71, titulo: "¡Y Tú, Estrella!", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "San Gonzalo", compositor: "Bienvenido Puelles Oliver", año: 0, ciudad: "Sevilla", descripcion: "Célebre marcha dedicada a la Virgen de la Estrella, compuesta por Bienvenido Puelles Oliver." },
+      { id: 72, titulo: "Jesús Ante Anás", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Bienvenido Puelles Oliver", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de Las Cigarreras compuesta por Bienvenido Puelles Oliver." },
+      { id: 73, titulo: "La Cruz Gitana", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Bienvenido Puelles Oliver", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de Las Cigarreras compuesta por Bienvenido Puelles Oliver." },
+      { id: 74, titulo: "Amor de Madre", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Francisco Javier González Ríos", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de Las Cigarreras compuesta por Francisco Javier González Ríos." },
+      { id: 75, titulo: "Eucaristía", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Francisco Javier González Ríos", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de Las Cigarreras compuesta por Francisco Javier González Ríos." },
+      { id: 76, titulo: "Al Pie de tu Santa Cruz", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Francisco Javier González Ríos", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de Las Cigarreras compuesta por Francisco Javier González Ríos." },
+      { id: 77, titulo: "Señor de Sevilla", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Jorge Martín Puerto", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de Las Cigarreras compuesta por Jorge Martín Puerto." },
+      { id: 78, titulo: "Ego Sum", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Francisco Japón Rodríguez", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de Las Cigarreras compuesta por Francisco Japón Rodríguez." },
+      { id: 79, titulo: "Madrugá Sevillana", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Dionisio Buñuel Gutiérrez y Francisco J. Casado Sánchez", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de Las Cigarreras compuesta por Dionisio Buñuel y Francisco J. Casado." },
+      { id: 80, titulo: "Costalero del Soberano", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Pedro Manuel Pacheco Palomo", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de Las Cigarreras compuesta por Pedro Manuel Pacheco Palomo." },
+      { tipo: "BM", id: 81, titulo: "Divina Pastora de Cantillana", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Pedro Manuel Pacheco Palomo", año: 0, ciudad: "Sevilla", descripcion: "Marcha dedicada a la Divina Pastora de Cantillana, del repertorio de Las Cigarreras." },
+      { id: 82, titulo: "Dulce Nombre de María", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Diego Alejandro Moreno Álvarez", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de Las Cigarreras compuesta por Diego Alejandro Moreno Álvarez." },
+      { id: 83, titulo: "Mi Cristo de Recogía", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Francisco Javier González Ríos", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de Las Cigarreras compuesta por Francisco Javier González Ríos." },
+      { id: 84, titulo: "Macarena", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "La Macarena", compositor: "Bienvenido Puelles Oliver", año: 0, ciudad: "Sevilla", descripcion: "Marcha dedicada a la Esperanza Macarena, del repertorio de Las Cigarreras." },
+      { tipo: "BM", id: 85, titulo: "Pasión, Muerte y Resurrección", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Francisco Javier González Ríos", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de Las Cigarreras compuesta por Francisco Javier González Ríos." },
+      { id: 86, titulo: "Refúgiame", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Francisco Javier González Ríos", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de Las Cigarreras compuesta por Francisco Javier González Ríos." },
+      { id: 87, titulo: "Stella Maris", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "José Manuel Reina Romero y Rafael Vázquez Mateo", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de Las Cigarreras compuesta por Reina y Vázquez." },
+      { tipo: "BM", id: 88, titulo: "Cristo de las Siete Palabras", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Luis Alfonso Miraut Lago", año: 0, ciudad: "Sevilla", descripcion: "Clásica de Luis Alfonso Miraut en el repertorio de Las Cigarreras." },
+      { tipo: "BM", id: 89, titulo: "Sobre los pies te lleva Sevilla", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Pedro Manuel Pacheco Palomo", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de Las Cigarreras compuesta por Pedro Manuel Pacheco Palomo." },
+      { id: 90, titulo: "Cachorro", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Ramón Montoya Molina", año: 0, ciudad: "Sevilla", descripcion: "Clásica de Ramón Montoya dedicada al Cristo del Cachorro, en el repertorio de Las Cigarreras." },
+      { id: 91, titulo: "En tu buena muerte", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Pedro Manuel Pacheco Palomo", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de Las Cigarreras compuesta por Pedro Manuel Pacheco Palomo." },
+      { id: 92, titulo: "Gath Shemanim", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Cristóbal López Gándara", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de Las Cigarreras compuesta por Cristóbal López Gándara." },
+      { id: 93, titulo: "Sanctae Crucis", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Cristóbal López Gándara", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de Las Cigarreras compuesta por Cristóbal López Gándara." },
+      { tipo: "BM", id: 94, titulo: "Silencio, ante Herodes… El hijo de Dios", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Cristóbal López Gándara", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de Las Cigarreras compuesta por Cristóbal López Gándara." },
+      { id: 95, titulo: "Soledad de San Pablo", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Pascual Zueco Ramos", año: 0, ciudad: "Sevilla", descripcion: "Clásica de Pascual Zueco Ramos en el repertorio de Las Cigarreras." },
+      { id: 96, titulo: "Y en la otra orilla…", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "José Carlos Garrido Moreno", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de Las Cigarreras compuesta por José Carlos Garrido Moreno." },
+      { id: 97, titulo: "Y fue azotado", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Francisco Ortiz Moroni y Sergio Larrinaga Soler", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de Las Cigarreras compuesta por Francisco Ortiz y Sergio Larrinaga." },
+      { id: 98, titulo: "Yo soy la luz del mundo", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Manuel Alejandro González Cruz", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de Las Cigarreras compuesta por Manuel Alejandro González Cruz." },
+      { id: 99, titulo: "Cristo del Perdón", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", cofradia: "Las Cigarreras", compositor: "Luis Alfonso Miraut Lago", año: 0, ciudad: "Sevilla", descripcion: "Clásica de Luis Alfonso Miraut en el repertorio de Las Cigarreras." },
+      // --- Banda de CC y TT Stmo. Cristo de las Tres Caídas (Triana, Sevilla) ---
+      { id: 100, titulo: "Silencio Blanco", tipo: "CCT", banda: "Banda de CC y TT Stmo. Cristo de las Tres Caídas", cofradia: "Cristo de las Tres Caídas", compositor: "José Julio Vera Cúder", año: 0, ciudad: "Sevilla", descripcion: "Una de las marchas más clásicas de las Tres Caídas de Triana." },
+      { id: 101, titulo: "Maestro Artesano", tipo: "CCT", banda: "Banda de CC y TT Stmo. Cristo de las Tres Caídas", cofradia: "Cristo de las Tres Caídas", compositor: "José Julio Vera Cúder", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de las Tres Caídas de Triana compuesta por José Julio Vera Cúder." },
+      { tipo: "BM", id: 102, titulo: "El desprecio de Herodes", tipo: "CCT", banda: "Banda de CC y TT Stmo. Cristo de las Tres Caídas", cofradia: "Cristo de las Tres Caídas", compositor: "José Manuel Reina y Rafael Vázquez Mateo", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de las Tres Caídas compuesta por Reina y Vázquez." },
+      { id: 103, titulo: "Cigarreras de Triana", tipo: "CCT", banda: "Banda de CC y TT Stmo. Cristo de las Tres Caídas", cofradia: "Cristo de las Tres Caídas", compositor: "José Manuel Reina y Rafael Vázquez Mateo", año: 0, ciudad: "Sevilla", descripcion: "Marcha dedicada a las Cigarreras de Triana, del repertorio de las Tres Caídas." },
+      { id: 104, titulo: "En Manos de Jesús", tipo: "CCT", banda: "Banda de CC y TT Stmo. Cristo de las Tres Caídas", cofradia: "Cristo de las Tres Caídas", compositor: "Francisco Ortiz Morón", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de las Tres Caídas compuesta por Francisco Ortiz Morón." },
+      { tipo: "BM", id: 105, titulo: "En tus lágrimas amargura", tipo: "CCT", banda: "Banda de CC y TT Stmo. Cristo de las Tres Caídas", cofradia: "Cristo de las Tres Caídas", compositor: "José Julio Vera Cúder", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de las Tres Caídas compuesta por José Julio Vera Cúder." },
+      { id: 106, titulo: "Historias de Judea", tipo: "CCT", banda: "Banda de CC y TT Stmo. Cristo de las Tres Caídas", cofradia: "Cristo de las Tres Caídas", compositor: "Miguel Ángel Jiménez Soto", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de las Tres Caídas compuesta por Miguel Ángel Jiménez Soto." },
+      { id: 107, titulo: "Llora María", tipo: "CCT", banda: "Banda de CC y TT Stmo. Cristo de las Tres Caídas", cofradia: "Cristo de las Tres Caídas", compositor: "Rafael Vázquez y J. Manuel Reina", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de las Tres Caídas compuesta por Vázquez y Reina." },
+      { id: 108, titulo: "Medea", tipo: "CCT", banda: "Banda de CC y TT Stmo. Cristo de las Tres Caídas", cofradia: "Cristo de las Tres Caídas", compositor: "Manuel Muñoz Alcón", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de las Tres Caídas compuesta por Manuel Muñoz Alcón." },
+      { id: 109, titulo: "Mi Plegaria", tipo: "CCT", banda: "Banda de CC y TT Stmo. Cristo de las Tres Caídas", cofradia: "Cristo de las Tres Caídas", compositor: "José Julio Vera Cúder y Rafael Vázquez Mateo", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de las Tres Caídas compuesta por Vera y Vázquez." },
+      { id: 110, titulo: "Santa Cruz", tipo: "CCT", banda: "Banda de CC y TT Stmo. Cristo de las Tres Caídas", cofradia: "Cristo de las Tres Caídas", compositor: "Rafael Vázquez Mateo y José Manuel Reina Moreno", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de las Tres Caídas compuesta por Vázquez y Reina." },
+      { id: 111, titulo: "Señor, Acuérdate de mí", tipo: "CCT", banda: "Banda de CC y TT Stmo. Cristo de las Tres Caídas", cofradia: "Cristo de las Tres Caídas", compositor: "Francisco Ortiz Morón", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de las Tres Caídas compuesta por Francisco Ortiz Morón." },
+      { id: 112, titulo: "La Fe", tipo: "CCT", banda: "Banda de CC y TT Stmo. Cristo de las Tres Caídas", cofradia: "Cristo de las Tres Caídas", compositor: "Francisco Ortiz Morón", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de las Tres Caídas compuesta por Francisco Ortiz Morón." },
+      { id: 113, titulo: "Así sea", tipo: "CCT", banda: "Banda de CC y TT Stmo. Cristo de las Tres Caídas", cofradia: "Cristo de las Tres Caídas", compositor: "Francisco Ortiz Morón", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de las Tres Caídas compuesta por Francisco Ortiz Morón." },
+      { id: 114, titulo: "Al Señor del Compás", tipo: "CCT", banda: "Banda de CC y TT Stmo. Cristo de las Tres Caídas", cofradia: "Cristo de las Tres Caídas", compositor: "Francisco Ortiz Morón", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de las Tres Caídas compuesta por Francisco Ortiz Morón." },
+      { id: 115, titulo: "Verde Esperanza", tipo: "CCT", banda: "Banda de CC y TT Stmo. Cristo de las Tres Caídas", cofradia: "Cristo de las Tres Caídas", compositor: "Manuel Alejandro González Cruz", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de las Tres Caídas compuesta por Manuel Alejandro González Cruz." },
+      { id: 116, titulo: "La Pasión", tipo: "CCT", banda: "Banda de CC y TT Stmo. Cristo de las Tres Caídas", cofradia: "Cristo de las Tres Caídas", compositor: "Manuel Alejandro González Cruz", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de las Tres Caídas compuesta por Manuel Alejandro González Cruz." },
+      { id: 117, titulo: "El alba", tipo: "CCT", banda: "Banda de CC y TT Stmo. Cristo de las Tres Caídas", cofradia: "Cristo de las Tres Caídas", compositor: "Manuel Alejandro González Cruz", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de las Tres Caídas compuesta por Manuel Alejandro González Cruz." },
+      { id: 118, titulo: "¡Ahí queó!", tipo: "CCT", banda: "Banda de CC y TT Stmo. Cristo de las Tres Caídas", cofradia: "Cristo de las Tres Caídas", compositor: "Manuel Alejandro González Cruz", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de las Tres Caídas compuesta por Manuel Alejandro González Cruz." },
+      { id: 119, titulo: "Caridad", tipo: "CCT", banda: "Banda de CC y TT Stmo. Cristo de las Tres Caídas", cofradia: "Cristo de las Tres Caídas", compositor: "Manuel Alejandro González Cruz", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de las Tres Caídas compuesta por Manuel Alejandro González Cruz." },
+      // --- Banda de CC y TT Ntra. Sra. del Rosario Coronada (Cádiz) ---
+      { id: 120, titulo: "Eternidad", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. del Rosario Coronada", cofradia: "Ntra. Sra. del Rosario", compositor: "Sergio Larrinaga Soler y Manuel Jesús Guerrero Marín", año: 0, ciudad: "Cádiz", descripcion: "Marcha del repertorio de la Banda del Rosario de Cádiz." },
+      { id: 121, titulo: "Cristo", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. del Rosario Coronada", cofradia: "Ntra. Sra. del Rosario", compositor: "Sergio Pastor González", año: 0, ciudad: "Cádiz", descripcion: "Marcha del repertorio de la Banda del Rosario de Cádiz." },
+      { id: 122, titulo: "Tu Sentencia", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. del Rosario Coronada", cofradia: "Ntra. Sra. del Rosario", compositor: "Sergio Pastor González", año: 0, ciudad: "Cádiz", descripcion: "Marcha del repertorio de la Banda del Rosario de Cádiz." },
+      { id: 123, titulo: "El Verbo", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. del Rosario Coronada", cofradia: "Ntra. Sra. del Rosario", compositor: "Manuel Jesús Guerrero Marín", año: 0, ciudad: "Cádiz", descripcion: "Marcha del repertorio de la Banda del Rosario de Cádiz." },
+      { tipo: "BM", id: 124, titulo: "Gitano tú eres de Santa María", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. del Rosario Coronada", cofradia: "Ntra. Sra. del Rosario", compositor: "Sergio Larrinaga Soler", año: 0, ciudad: "Cádiz", descripcion: "Marcha del repertorio de la Banda del Rosario de Cádiz." },
+      { id: 125, titulo: "El Amor", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. del Rosario Coronada", cofradia: "Ntra. Sra. del Rosario", compositor: "Sergio Larrinaga Soler y Manuel Jesús Guerrero Marín", año: 0, ciudad: "Cádiz", descripcion: "Marcha del repertorio de la Banda del Rosario de Cádiz." },
+      { tipo: "BM", id: 126, titulo: "Al compás de tu andar, Despojado", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. del Rosario Coronada", cofradia: "Ntra. Sra. del Rosario", compositor: "Manuel Jesús Guerrero Marín", año: 0, ciudad: "Cádiz", descripcion: "Marcha del repertorio de la Banda del Rosario de Cádiz." },
+      { id: 127, titulo: "De Cádiz… un Rosario", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. del Rosario Coronada", cofradia: "Ntra. Sra. del Rosario", compositor: "Cristóbal López Gándara", año: 0, ciudad: "Cádiz", descripcion: "Marcha del repertorio de la Banda del Rosario de Cádiz compuesta por Cristóbal López Gándara." },
+      { id: 128, titulo: "Señor de Nervión", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. del Rosario Coronada", cofradia: "Ntra. Sra. del Rosario", compositor: "Francisco Javier Torres Simón", año: 0, ciudad: "Cádiz", descripcion: "Marcha del repertorio de la Banda del Rosario de Cádiz." },
+      { id: 129, titulo: "El Milagro", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. del Rosario Coronada", cofradia: "Ntra. Sra. del Rosario", compositor: "Sergio Larrinaga Soler y Manuel Jesús Guerrero Marín", año: 0, ciudad: "Cádiz", descripcion: "Marcha del repertorio de la Banda del Rosario de Cádiz." },
+      { id: 130, titulo: "A la tercera caída", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. del Rosario Coronada", cofradia: "Ntra. Sra. del Rosario", compositor: "Manuel Jesús Guerrero Marín", año: 0, ciudad: "Cádiz", descripcion: "Marcha del repertorio de la Banda del Rosario de Cádiz." },
+      { id: 131, titulo: "Venga tu reino", tipo: "CCT", banda: "Banda de CC y TT Ntra. Sra. del Rosario Coronada", cofradia: "Ntra. Sra. del Rosario", compositor: "Sergio Larrinaga Soler", año: 0, ciudad: "Cádiz", descripcion: "Marcha del repertorio de la Banda del Rosario de Cádiz." },
+      // --- Agrupación Musical Virgen de los Reyes (Sevilla) ---
+      { id: 132, titulo: "Reina de Reyes", tipo: "AM", banda: "Agrupación Musical Virgen de los Reyes", cofradia: "Jesús Despojado", compositor: "Alejandro Blanco Hernández", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de la AM Virgen de los Reyes compuesta por Alejandro Blanco Hernández." },
+      { id: 133, titulo: "La Esperanza de María", tipo: "AM", banda: "Agrupación Musical Virgen de los Reyes", cofradia: "Jesús Despojado", compositor: "Alejandro Blanco Hernández", año: 0, ciudad: "Sevilla", descripcion: "Una de las marchas más populares de la AM Virgen de los Reyes, de carácter flamenco." },
+      { id: 134, titulo: "Vida", tipo: "AM", banda: "Agrupación Musical Virgen de los Reyes", cofradia: "Resurrección", compositor: "Alejandro Blanco Hernández", año: 0, ciudad: "Sevilla", descripcion: "Marcha luminosa y esperanzadora de la AM Virgen de los Reyes." },
+      { id: 135, titulo: "Y al tercer día…", tipo: "AM", banda: "Agrupación Musical Virgen de los Reyes", cofradia: "Resurrección", compositor: "Alejandro Blanco Hernández", año: 0, ciudad: "Sevilla", descripcion: "Marcha de la AM Virgen de los Reyes compuesta por Alejandro Blanco Hernández." },
+      { id: 136, titulo: "Volver", tipo: "AM", banda: "Agrupación Musical Virgen de los Reyes", cofradia: "Varias", compositor: "Alejandro Blanco Hernández", año: 0, ciudad: "Sevilla", descripcion: "Marcha de la AM Virgen de los Reyes compuesta por Alejandro Blanco Hernández." },
+      { id: 137, titulo: "Alma Nuestra", tipo: "AM", banda: "Agrupación Musical Virgen de los Reyes", cofradia: "Varias", compositor: "Miguel Ángel Font Morgado", año: 0, ciudad: "Sevilla", descripcion: "Marcha de la AM Virgen de los Reyes compuesta por Miguel Ángel Font Morgado." },
+      { id: 138, titulo: "¡A la Gloria!", tipo: "AM", banda: "Agrupación Musical Virgen de los Reyes", cofradia: "Varias", compositor: "Miguel Ángel Font Morgado", año: 0, ciudad: "Sevilla", descripcion: "Marcha de la AM Virgen de los Reyes compuesta por Miguel Ángel Font Morgado." },
+      { tipo: "BM", id: 139, titulo: "Caminando van por tientos… la Madrugá", tipo: "AM", banda: "Agrupación Musical Virgen de los Reyes", cofradia: "Varias", compositor: "Miguel Ángel Font Morgado", año: 0, ciudad: "Sevilla", descripcion: "Marcha aflamencada de la AM Virgen de los Reyes compuesta por Miguel Ángel Font Morgado." },
+      { id: 140, titulo: "Serva la Bari", tipo: "AM", banda: "Agrupación Musical Virgen de los Reyes", cofradia: "Varias", compositor: "Miguel Ángel Font Morgado", año: 0, ciudad: "Sevilla", descripcion: "Marcha de la AM Virgen de los Reyes compuesta por Miguel Ángel Font Morgado." },
+      { tipo: "BM", id: 141, titulo: "Tu Paz por la Calle Ancha", tipo: "AM", banda: "Agrupación Musical Virgen de los Reyes", cofradia: "Varias", compositor: "Miguel Ángel Font Morgado", año: 0, ciudad: "Sevilla", descripcion: "Marcha de la AM Virgen de los Reyes compuesta por Miguel Ángel Font Morgado." },
+      { id: 142, titulo: "La Conversión de Sarah", tipo: "AM", banda: "Agrupación Musical Virgen de los Reyes", cofradia: "Varias", compositor: "Miguel Ángel Font Morgado", año: 0, ciudad: "Sevilla", descripcion: "Marcha de la AM Virgen de los Reyes compuesta por Miguel Ángel Font Morgado." },
+      { id: 143, titulo: "Tu Misericordia", tipo: "AM", banda: "Agrupación Musical Virgen de los Reyes", cofradia: "Varias", compositor: "Manuel Jesús Guerrero Marín", año: 0, ciudad: "Sevilla", descripcion: "Marcha de la AM Virgen de los Reyes compuesta por Manuel Jesús Guerrero Marín." },
+      { id: 144, titulo: "Gitano de Sevilla", tipo: "AM", banda: "Agrupación Musical Virgen de los Reyes", cofradia: "Varias", compositor: "Paco Lola", año: 0, ciudad: "Sevilla", descripcion: "Marcha de la AM Virgen de los Reyes compuesta por Paco Lola." },
+      { id: 145, titulo: "Antes de irme", tipo: "AM", banda: "Agrupación Musical Virgen de los Reyes", cofradia: "Varias", compositor: "José Manuel Sánchez Crespillo", año: 0, ciudad: "Sevilla", descripcion: "Marcha de la AM Virgen de los Reyes compuesta por José Manuel Sánchez Crespillo." },
+      { id: 146, titulo: "El Galileo", tipo: "AM", banda: "Agrupación Musical Virgen de los Reyes", cofradia: "Varias", compositor: "Javier Cebrero Arias y José María Sánchez Martín", año: 0, ciudad: "Sevilla", descripcion: "Marcha de la AM Virgen de los Reyes compuesta por Cebrero y Sánchez Martín." },
+      { id: 147, titulo: "Consuelo Gitano", tipo: "AM", banda: "Agrupación Musical Virgen de los Reyes", cofradia: "Varias", compositor: "Antonio Velasco Rodríguez", año: 0, ciudad: "Sevilla", descripcion: "Marcha de la AM Virgen de los Reyes compuesta por Antonio Velasco Rodríguez." },
+      { id: 148, titulo: "Ego Sum Lux Mundi", tipo: "CCT", banda: "Banda de CC y TT Carmen de Málaga", cofradia: "Varias", compositor: "Sergio Pastor González", año: 0, ciudad: "Sevilla", descripcion: "Marcha procesional compuesta por Sergio Pastor González para la Banda de CC y TT Carmen de Málaga." },
+      // --- Banda de CC y TT Carmen (Almería) ---
+      { id: 151, titulo: "Al pie de tu Cruz", tipo: "CCT", banda: "Banda de CC y TT Carmen de Almería", cofradia: "Congregación del Santo Sepulcro de Jaén", compositor: "Daniel Barranco Ortega", año: 2022, ciudad: "Almería", descripcion: "Dedicada a la Congregación del Santo Sepulcro de Jaén, compuesta por Daniel Barranco Ortega." },
+      { id: 152, titulo: "Cáliz de Fe", tipo: "CCT", banda: "Banda de CC y TT Carmen de Almería", cofradia: "Santa Cena de Almería", compositor: "Ignacio José García Pérez", año: 2022, ciudad: "Almería", descripcion: "Dedicada a la Santa Cena de Almería, compuesta por Ignacio José García Pérez." },
+      { id: 153, titulo: "El Castigo", tipo: "CCT", banda: "Banda de CC y TT Carmen de Almería", cofradia: "Stmo. Cristo de la Paz de Almería", compositor: "Antonio Marín Romero", año: 2016, ciudad: "Almería", descripcion: "Dedicada al Stmo. Cristo de la Paz de Almería, compuesta por Antonio Marín Romero." },
+      { id: 154, titulo: "En la Tierra como en el Cielo", tipo: "CCT", banda: "Banda de CC y TT Carmen de Almería", cofradia: "Stmo. Cristo de la Buena Muerte de Almería", compositor: "Emilio García Caparrós", año: 2019, ciudad: "Almería", descripcion: "Dedicada al Stmo. Cristo de la Buena Muerte de Almería, compuesta por Emilio García Caparrós." },
+      { id: 155, titulo: "In Coena Domini", tipo: "CCT", banda: "Banda de CC y TT Carmen de Almería", cofradia: "Santa Cena de Almería", compositor: "Antonio Marín Romero", año: 2019, ciudad: "Almería", descripcion: "Dedicada a la Santa Cena de Almería, compuesta por Antonio Marín Romero." },
+      { id: 156, titulo: "Lumen Dei In Aeternum", tipo: "CCT", banda: "Banda de CC y TT Carmen de Almería", cofradia: "Agrupación de HH y CC de Almería", compositor: "Ignacio José García Pérez", año: 2022, ciudad: "Almería", descripcion: "Dedicada a la Agrupación de Hermanos y Cofrades de Almería, compuesta por Ignacio José García Pérez." },
+      { id: 157, titulo: "Madre de Vida Eterna", tipo: "CCT", banda: "Banda de CC y TT Carmen de Almería", cofradia: "Ntra. Sra. de los Dolores de Jaén", compositor: "Daniel Barranco Ortega", año: 2019, ciudad: "Almería", descripcion: "Dedicada a Nuestra Señora de los Dolores de Jaén, compuesta por Daniel Barranco Ortega." },
+      { id: 158, titulo: "Mirada Cautiva", tipo: "CCT", banda: "Banda de CC y TT Carmen de Almería", cofradia: "Jesús Cautivo de Medinaceli de Almería", compositor: "Manuel Jesús Guerrero Marín", año: 2019, ciudad: "Almería", descripcion: "Dedicada a Jesús Cautivo de Medinaceli de Almería, compuesta por Manuel Jesús Guerrero Marín." },
+      { id: 159, titulo: "¡PRENDEDLE! 1948", tipo: "CCT", banda: "Banda de CC y TT Carmen de Almería", cofradia: "Hermandad del Prendimiento de Almería", compositor: "Ignacio José García Pérez", año: 2023, ciudad: "Almería", descripcion: "Dedicada a la Hermandad del Prendimiento de Almería, compuesta por Ignacio José García Pérez." },
+      { id: 160, titulo: "Santissimum Sacramentum", tipo: "CCT", banda: "Banda de CC y TT Carmen de Almería", cofradia: "Santa Cena de Almería", compositor: "Cristóbal López Gándara", año: 2019, ciudad: "Almería", descripcion: "Dedicada a la Santa Cena de Almería, compuesta por Cristóbal López Gándara." },
+      // --- Banda de la Policía Armada ---
+      { id: 149, titulo: "La Lanzada", tipo: "CCT", banda: "Banda de la Policía Armada", cofradia: "La Lanzada", compositor: "Ramón Montoya", año: 0, ciudad: "Sevilla", descripcion: "Marcha clásica de Ramón Montoya dedicada al misterio de la Lanzada, del repertorio de la Policía Armada." },
+      { id: 150, titulo: "Santísimo Cristo de las Aguas", tipo: "CCT", banda: "Banda de la Policía Armada", cofradia: "Cristo de las Aguas", compositor: "Francisco Arroyo", año: 0, ciudad: "Sevilla", descripcion: "Marcha clásica de Francisco Arroyo del repertorio de la Banda de la Policía Armada." },
+
+      // --- Repertorio General Banda de Música ---
+      { id: 200, titulo: "Amargura Coronada", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Abel Moreno", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 201, titulo: "Coronación De La Amargura", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José Antonio Molero Luque", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 202, titulo: "Cristo De Los Milagros", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Francisco Martínez Santiago", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 203, titulo: "La Rosa Blanca", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Alberto Muñoz Fernández", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 204, titulo: "La Zamarrilla", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José Luis Pérez Zambrana", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 205, titulo: "Rosa De Jueves Santo", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José Antonio Molero Luque", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 206, titulo: "Santo Suplicio", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Fernando Claros", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 207, titulo: "Un Refugio Bajo Tu Manto", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José Ignacio Fortis Pérez", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 208, titulo: "Zamarrilla Coronada", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Adolfo Gálvez González", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 209, titulo: "Zamarrilla…", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Carlos Moreno Camacho", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 210, titulo: "Rosa y Puñal", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Alberto Muñoz Fernández", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 211, titulo: "Al Cielo La Reina De Triana", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José Luis Gómez Jaldón", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 212, titulo: "Alma De La Trinidad", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Eloy García López", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 213, titulo: "Amanecer", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José Luis González Arenal", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 214, titulo: "Amargura Gitana", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Martín Salas", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 215, titulo: "Amarguras", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Manuel Font De Anta", año: 0, ciudad: "Andalucía", descripcion: "Una de las marchas más célebres de la Semana Santa sevillana." },
+      { id: 216, titulo: "Aniversario Macareno", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Velázquez", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 217, titulo: "Aquella Virgen", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "M. Gómez De Arriba", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 218, titulo: "Aurora, Reina De La Mañana", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Pablo Ojeda Jiménez", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 219, titulo: "Ave María", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Vladimir Vavilov", año: 0, ciudad: "Andalucía", descripcion: "Adaptación procesional del Ave María de Vavilov." },
+      { id: 220, titulo: "Callejuela De La O", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Paco Lola y Martín Salas", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 221, titulo: "Candelaria, Luz De Sevilla", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "David Segado Ramírez", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 222, titulo: "Caridad Del Guadalquivir", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Paco Lola", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 223, titulo: "Caridad Para Mi Hijo", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José Ribera Tordella", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 224, titulo: "Carmen Coronada", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Sergio Bueno", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 225, titulo: "Como Tu Ninguna", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "David Hurtado", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 226, titulo: "Consummatum Est", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Eloy García López", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 227, titulo: "Coronación", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Perfecto Artola", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 228, titulo: "Coronación De La Macarena", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "La Macarena", compositor: "Pedro Braña", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional dedicada a la Esperanza Macarena." },
+      { id: 229, titulo: "Coronación Nuestra Señora Del Carmen", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Eloy García López", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 230, titulo: "Cristo De La Agonía", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Abel Moreno", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 231, titulo: "Cristo Del Amor", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Francisco Javier Moreno Ramos", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 232, titulo: "Cuando Pasa La Esperanza", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Cristóbal López Gándara", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 233, titulo: "Danos La Paz", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "J. J. Espinosa De Los Monteros", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 234, titulo: "Danos Tu Paz", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José Luis Pérez Zambrana", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 235, titulo: "Dios Te Salve, Rocío", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Manuel Jesús Castro", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 236, titulo: "Dolorosa Del Puente", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Desiderio Artola", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 237, titulo: "Domine Deus Noster", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Luis Manuel Catalán Núñez", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 238, titulo: "El Refugio De María", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Cristóbal López Gándara", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 239, titulo: "En Los Brazos De Una Madre", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Adolfo Gálvez González", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 240, titulo: "Encarnación Coronada", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Abel Moreno", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 241, titulo: "Esperanza Macarena", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "La Macarena", compositor: "Pedro Morales Muñoz", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional dedicada a la Esperanza Macarena." },
+      { id: 242, titulo: "Esperanza Que Guía Triana", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José León Alapont", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 243, titulo: "Espíritu Santo", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Pablo Ojeda", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 244, titulo: "Getsemaní", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Ricardo Dorado Janeiro", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 245, titulo: "Gitana De Los Mártires", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Ezequiel González Cruz", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 246, titulo: "Himno De Andalucía", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José Del Castillo Díaz", año: 0, ciudad: "Andalucía", descripcion: "Himno oficial de Andalucía adaptado para banda de música procesional." },
+      { id: 247, titulo: "Himno De Coronación De La Virgen De La Esperanza", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Perfecto Artola", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 248, titulo: "Himno Nacional", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Bartolomé Pérez Casas", año: 0, ciudad: "Andalucía", descripcion: "Himno Nacional español en versión para banda de música procesional." },
+      { id: 249, titulo: "Hosanna In Excelsis", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Óscar Navarro", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 250, titulo: "Jerusalén", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José Vélez García", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 251, titulo: "Jesús Cautivo", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Miguel Pérez", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 252, titulo: "Jesús De La Pasión", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Perfecto Artola", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 253, titulo: "Juana De Arco", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Charles François Gounod", año: 0, ciudad: "Andalucía", descripcion: "Adaptación procesional de la obra de Gounod." },
+      { id: 254, titulo: "La Caridad Del Arenal", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "J. J. Espinosa De Los Monteros", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 255, titulo: "La Esperanza", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José Joaquín Espinosa De Los Monteros", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 256, titulo: "La Esperanza De Santa Ana", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "David Torres Fernández", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 257, titulo: "La Esperanza De Triana", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Manuel López Farfán", año: 0, ciudad: "Andalucía", descripcion: "Clásica de Manuel López Farfán, una de las marchas más conocidas del repertorio general." },
+      { id: 258, titulo: "La Estrella Sublime", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Manuel López Farfán", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 259, titulo: "La Gitana", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Carlos Llano Picón", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 260, titulo: "La Gracia De María", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Cristóbal López Gándara", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 261, titulo: "La Luz De María", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Alberto Muñoz Fernández", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 262, titulo: "La Madre De Dios", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Francisco Jesús Flores Matute", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 263, titulo: "La Madrugá", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Abel Moreno", año: 0, ciudad: "Andalucía", descripcion: "Una de las marchas más emblemáticas de la Semana Santa, compuesta por Abel Moreno." },
+      { id: 264, titulo: "La Piedad", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Ricardo Dorado Janeiro", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 265, titulo: "La Quinta Angustia", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "F. Grau", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 266, titulo: "La Sangre Y La Gloria", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Alfonso Lozano Ruiz", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 267, titulo: "La Semana Mayor", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Manuel López Farfán", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 268, titulo: "La Vecina Insigne", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José Miguel Navarro Martín", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 269, titulo: "La Virgen De La O", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Antonio Moreno Pozo", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 270, titulo: "La Virgen De Las Angustias", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "David Hurtado", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 271, titulo: "La Virgen De Sevilla", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Víctor López López", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 272, titulo: "Macarena", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "La Macarena", compositor: "Emilio Cebrián Ruiz", año: 0, ciudad: "Andalucía", descripcion: "Marcha dedicada a la Esperanza Macarena, de repertorio general." },
+      { id: 273, titulo: "Madre Esperanza", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Manuel Jesús Guerrero Marín", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 274, titulo: "Madre Hiniesta", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Manuel Marvizón Carvallo", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 275, titulo: "Madrugá De Angustias", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José León Alapont", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 276, titulo: "Málaga A Su Virgen De La Victoria", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Ginés Sánchez", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 277, titulo: "Malagueña (Virgen De La Paloma)", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Rafael Hernández Moreno", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 278, titulo: "Manto Y Corona", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Eloy García López", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 279, titulo: "Marcha Fúnebre", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Sors", año: 0, ciudad: "Andalucía", descripcion: "Marcha fúnebre de repertorio general para banda de música." },
+      { id: 280, titulo: "Margot", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Joaquín Turina", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de Joaquín Turina, de repertorio general." },
+      { id: 281, titulo: "María Del Rocío", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Cristóbal López Gándara", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 282, titulo: "María Santísima De Las Penas", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Antonio Pantión Pérez", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 283, titulo: "María Santísima Del Amparo", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José Antonio Molero Luque", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 284, titulo: "María Santísima Del Refugio", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Cristóbal López Gándara", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 285, titulo: "María Stma. Del Subterráneo", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Pedro Gámez Laserna", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 286, titulo: "María, Luz De Esperanza", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Christian Palomino Olías", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 287, titulo: "Mater Mea", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Ricardo Dorado Janeiro", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 288, titulo: "Mi Amargura", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Víctor M. Ferrer", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 289, titulo: "Nanas Del Baratillo", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "David Hurtado", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 290, titulo: "Nazareno Del Paso", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Benjamín Esparza Gil", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 291, titulo: "Nuestra Señora Del Mayor Dolor", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Perfecto Artola", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 292, titulo: "Nuestro Padre Jesús", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Emilio Cebrián Ruiz", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 293, titulo: "Nueva Esperanza", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Cristóbal López Gándara", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 294, titulo: "Oremos", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Ricardo Dorado Janeiro", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 295, titulo: "Pasa La Soledad", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José Antonio Molero Luque", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 296, titulo: "Pasa La Virgen De La Candelaria", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Cristóbal López Gándara", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 297, titulo: "Pasa La Virgen Macarena", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Pedro Gámez Laserna", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 298, titulo: "Pasan Los Campanilleros", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "La Macarena", compositor: "Manuel López Farfán", año: 0, ciudad: "Andalucía", descripcion: "Marcha icónica de Manuel López Farfán, símbolo de la Esperanza Macarena." },
+      { id: 299, titulo: "Pasión Malagueña", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Víctor Vallejo", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 300, titulo: "Passio Granatensis", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Ángel López Carreño", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 301, titulo: "Paz Eterna", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "María Teresa Texidor", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 302, titulo: "Plegaria Al Cristo Del Perdón", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Francisco Javier Moreno Ramos", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 303, titulo: "Procesión De Semana Santa En Sevilla", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Pascual Marquina", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 304, titulo: "Puerta Del Cielo", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Francisco Javier Criado Jiménez", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 305, titulo: "Reina De La O", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Antonio David Rodríguez Gómez", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 306, titulo: "Reina De San Román", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Ginés Sánchez", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 307, titulo: "Reina De Triana", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José Miguel López Rueda", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 308, titulo: "Reina Macarena", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "La Macarena", compositor: "José León Alapont", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional dedicada a la Esperanza Macarena." },
+      { id: 309, titulo: "Reina, Madre Y Capitana", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José Luis Gómez Jaldón", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 310, titulo: "Rocío", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Manuel Ruiz Vidriet", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 311, titulo: "Rosario De Montesión", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Juan Velázquez Sánchez", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 312, titulo: "Salud De Triana", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José Miguel López Rueda", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 313, titulo: "Santísimo Cristo Del Desamparo Y Abandono", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Francisco Herrera Mijes", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 314, titulo: "Santo Traslado", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Miguel Pérez", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 315, titulo: "Se Arrodilla Triana", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "David Hurtado", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 316, titulo: "Se Siempre Nuestra Esperanza", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Rubén Jordán Flores", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 317, titulo: "Sed De Ti", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José Peña Rubio", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 318, titulo: "Señora De La Dulce Espera", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Juan Carlos Sempere Bomboi", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 319, titulo: "Sevilla Cofradiera", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Pedro Gámez Laserna", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 320, titulo: "Siempre La Esperanza", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "J. J. Espinosa De Los Monteros", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 321, titulo: "Siempre Macarena", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "La Macarena", compositor: "José León Alapont", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional dedicada a la Esperanza Macarena." },
+      { id: 322, titulo: "Soleá, Dame La Mano", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Manuel Font De Anta", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 323, titulo: "Soledad", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Perfecto Artola", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 324, titulo: "Soledad De San Pablo", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Miguel Pérez", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 325, titulo: "Soledad Dolorosa", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José Luis Arias Bermúdez", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 326, titulo: "Soledad, Madre De Jauja", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Adolfo Gálvez González", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 327, titulo: "Tras Tu Verde Manto", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Rafael Wals", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 328, titulo: "Triana", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Félix De Carboneras", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 329, titulo: "Triana De Esperanza", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Claudio Gómez Calado", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 330, titulo: "Tu Eres El Orgullo De Nuestro Pueblo", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Pablo Ojeda Jiménez", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 331, titulo: "Tu Eres Mi Alegría", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Antonio Rosano Ruiz", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 332, titulo: "Valle De Sevilla", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José De La Vega", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 333, titulo: "Virgen De La Estrella", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Pedro Gámez Laserna", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 334, titulo: "Virgen De La Paz", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Pedro Morales Muñoz", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 335, titulo: "Virgen De La Piedad", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Perfecto Artola", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 336, titulo: "Virgen De Las Aguas", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Santiago Ramos Castro", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 337, titulo: "Virgen De Los Negritos", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Pedro Morales Muñoz", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 338, titulo: "Virgen De Nueva Esperanza", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Miguel Pérez", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 339, titulo: "Virgen Del Amor Doloroso", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Eloy García López", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 340, titulo: "Virgen Del Rosario Coronada", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Pablo Ojeda Jiménez", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 341, titulo: "Virgen Del Subterráneo", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José Martínez Peralto", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 342, titulo: "Virgen Del Valle", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Vicente Gómez Zarzuela", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 343, titulo: "Y En Triana La O", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "J. J. Espinosa De Los Monteros", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+
+      { id: 400, titulo: "A La Memoria De Mi Padre", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Manuel Font Fernández", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 401, titulo: "Alegría De La Mañana", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Francisco Javier Criado", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 402, titulo: "¡Amparo!", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Alfonso López Cortés", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 403, titulo: "Aniversario En El Polvorín", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Jesús Manuel Perojil", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 404, titulo: "Benigne Fac Domine", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Eduardo Ocón Rivas", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 405, titulo: "Consuelo Eterno", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Antonio David Rodríguez Gómez", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 406, titulo: "Cristo De La Expiración", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "G. Álvarez Beigbeder", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 407, titulo: "Dulce Nombre De Jesús", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Pedro Morales", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 408, titulo: "El Cachorro, Saeta Sevillana", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Pedro Gámez Laserna", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 409, titulo: "El Lirio Tronchado", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Manuel Borrego", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 410, titulo: "Esperanza", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Manuel Marvizón", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 411, titulo: "Esperanza De Triana Coronada", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "J. Albero", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 412, titulo: "Esperanza De Vida", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Manuel Marvizón", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 413, titulo: "Estudiantes", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Manuel Marvizón", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 414, titulo: "Flor De San Julián", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Miguel Pérez", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 415, titulo: "Frente A Ti", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Eloy García López", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 416, titulo: "Hermanos Costaleros", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Abel Moreno", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 417, titulo: "Hiniesta", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Peralto", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 418, titulo: "Hiniesta Coronada", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "J. Albero", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 419, titulo: "Impresión De Jueves Santo", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Manuel López Farfán", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 420, titulo: "Iubilaeus", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Eloy García López", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 421, titulo: "Jesús De Las Penas", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Antonio Pantión", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 422, titulo: "La Paz", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José Luis Pérez Zambrana", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 423, titulo: "La Paz De María", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Cristóbal López Gándara", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 424, titulo: "La Sagrada Lanzada", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Manuel Font Fernández", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 425, titulo: "La Sonrisa De Málaga", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Elías Santiago Vico", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 426, titulo: "La Vía Sacra", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Rafael Wals", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 427, titulo: "La Virgen De La Paz", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Narciso Pérez Espinosa", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 428, titulo: "La Virgen De Los Desamparados", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Cristóbal López Gándara", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 429, titulo: "La Virgen Del Carmen", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Rafael Wals", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 430, titulo: "Las Penas De María", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Francisco Javier Moreno", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 431, titulo: "Llanto Y Dolor", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Perfecto Artola", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 432, titulo: "Los Estudiantes", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Cristóbal López Gándara", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 433, titulo: "Madre De Los Gitanos Coronada", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Abel Moreno", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 434, titulo: "Madre Y Señora Del Buen Fin", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Pedro Morales", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 435, titulo: "Madre Y Señora Del Patrocinio", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "L. M. Mejías", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 436, titulo: "Madrugá Macarena", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "La Macarena", compositor: "Pablo Ojeda", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 437, titulo: "Malacitana", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Antonio Rozas", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 438, titulo: "Marcha Fúnebre En La Ópera Jone", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Errico Petrella", año: 0, ciudad: "Andalucía", descripcion: "Marcha fúnebre de repertorio general para banda de música." },
+      { id: 439, titulo: "Marcha Fúnebre (Quinta Angustia)", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José Font Marimont", año: 0, ciudad: "Andalucía", descripcion: "Marcha fúnebre de repertorio general para banda de música." },
+      { id: 440, titulo: "María En Sus Penas", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Pedro Gálvez", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 441, titulo: "Mª Stma. De La O", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Abel Moreno", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 442, titulo: "Mª Stma. Del Dulce Nombre", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Luis Lerate", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 443, titulo: "Mektub", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Mariano San Miguel", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 444, titulo: "Ntra. Sra. De Guadalupe", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Antonio Pantión", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 445, titulo: "Ntra. Sra. Del Patrocinio", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Pedro Gámez Laserna", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 446, titulo: "Pasa La Virgen De La Paz", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Daniel Albarrán", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 447, titulo: "Pasa La Virgen De La Soledad", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Pedro Morales", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 448, titulo: "¡Piedad!", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Juarranz", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 449, titulo: "Regina Pacis", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Manuel Borrego", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 450, titulo: "Reina De San Agustín", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Francisco Javier Moreno", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 451, titulo: "Rosa De Abril", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Nacho Loring", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 452, titulo: "Saeta Cordobesa", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Pedro Gámez Laserna", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 453, titulo: "Sta. Mª Del Monte Calvario", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José Manuel Bernal", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 454, titulo: "Spes Nostra", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Manuel López Farfán", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 455, titulo: "Subida Al Calvario", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "David Hurtado", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 456, titulo: "Stabat Mater", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Sebastián Cabezas", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 457, titulo: "Torreblanca", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "J. J. Espinosa", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 458, titulo: "Triana, Tu Esperanza", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José De La Vega", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 459, titulo: "Victoria Dolorosa, Resignación", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "José Font De Anta", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 460, titulo: "Vigía De Nuestra Fe", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Narciso Pérez Espinosa", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 461, titulo: "Virgen De La Palma", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Manuel Marvizón", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 462, titulo: "Virgen De Montserrat", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Pedro Morales", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 463, titulo: "Virgen Del Carmen", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Perfecto Artola", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 464, titulo: "Virgen De Los Reyes", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Abel Moreno", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+      { id: 465, titulo: "Y Amaneció En Tu Albayzín", tipo: "BM", banda: "Banda de Música de Semana Santa", cofradia: "Varias", compositor: "Elías Santiago Vico", año: 0, ciudad: "Andalucía", descripcion: "Marcha procesional de repertorio general para banda de música." },
+    ];
+
+    const ciudades = ["Todas", ...new Set(MARCHAS_DB.map(m => m.ciudad))];
+    const ACR_HOST = "identify-eu-west-1.acrcloud.com";
+    const ACR_ACCESS_KEY = "ce1e3aa3da234b3cc2f2dcfff9ea27a2";
+    const ACR_ACCESS_SECRET = "vQFnICb7R3WNp2PQNtp7VKChHl2yamWKnrSFtSV1";
+
+    function WaveformAnimation({ active }) {
+      return (
+        <div style={{ display: "flex", alignItems: "center", gap: 4, height: 40, justifyContent: "center" }}>
+          {[...Array(12)].map((_, i) => (
+            <div key={i} className={`wave-bar${active ? ` active-${i}` : ""}`} />
+          ))}
+        </div>
+      );
+    }
+
+    function MarchaCard({ marcha, onSelect }) {
+      const tipoColor = marcha.tipo === "BM" ? "#4a6a8a" : marcha.tipo === "AM" ? "#6a4a8a" : "#6a4a2a";
+      const tipoLabel = marcha.tipo === "BM" ? "Banda de Música" : marcha.tipo === "AM" ? "Agrupación Musical" : "CC y TT";
+      return (
+        <div className="marcha-card" onClick={() => onSelect(marcha)}>
+          <div style={{ position: "absolute", top: 0, right: 0, width: 60, height: 60, background: "radial-gradient(circle at top right, rgba(201,168,76,0.08), transparent 70%)" }} />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+            <h3 style={{ margin: 0, fontFamily: "'Playfair Display', serif", fontSize: 17, color: "#f0d080", fontWeight: 700 }}>{marcha.titulo}</h3>
+            <span style={{ fontSize: 11, color: "#8a6a3a", fontFamily: "monospace", background: "#120c04", padding: "2px 8px", borderRadius: 4 }}>{marcha.año > 0 ? marcha.año : "—"}</span>
+          </div>
+          <p style={{ margin: "0 0 6px", fontSize: 12, color: "#c9a84c", fontStyle: "italic" }}>{marcha.compositor}</p>
+          <p style={{ margin: "0 0 4px", fontSize: 12, color: "#a08050" }}>{marcha.tipo === "BM" ? "Repertorio general" : marcha.banda}</p>
+          <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 11, color: tipoColor, background: "#200e04", padding: "2px 10px", borderRadius: 20, border: `1px solid ${tipoColor}` }}>{tipoLabel}</span>
+            <span style={{ fontSize: 11, color: "#6a4a2a", background: "#200e04", padding: "2px 10px", borderRadius: 20, border: "1px solid #3a2510" }}>{marcha.ciudad}</span>
+          </div>
+        </div>
+      );
+    }
+
+    function MarchaDetail({ marcha, onClose }) {
+      return (
+        <div className="overlay" onClick={onClose}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div style={{ position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)", width: 80, height: 2, background: "linear-gradient(90deg, transparent, #c9a84c, transparent)", borderRadius: 1 }} />
+            <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", color: "#8a6a3a", fontSize: 22, cursor: "pointer" }}>✕</button>
+            <div style={{ textAlign: "center", marginBottom: 28 }}>
+              <div style={{ fontSize: 40, marginBottom: 8 }}>🎺</div>
+              <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, color: "#f0d080" }}>{marcha.titulo}</h2>
+              <p style={{ margin: "8px 0 0", color: "#c9a84c", fontStyle: "italic", fontSize: 14 }}>{marcha.compositor}{marcha.año > 0 ? ` · ${marcha.año}` : ""}</p>
+            </div>
+            <div style={{ display: "grid", gap: 14 }}>
+              {[
+                { label: "Tipo", value: marcha.tipo === "BM" ? "Banda de Música" : marcha.tipo === "AM" ? "Agrupación Musical" : "Cornetas y Tambores" },
+                { label: "Cofradía", value: marcha.cofradia },
+                { label: marcha.tipo === "BM" ? "Repertorio" : "Banda", value: marcha.tipo === "BM" ? "Marcha Popular" : marcha.banda },
+                { label: "Ciudad", value: marcha.ciudad }
+              ].map(({ label, value }) => (
+                <div key={label} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                  <span style={{ fontSize: 11, color: "#6a4a2a", minWidth: 70, textTransform: "uppercase", letterSpacing: "0.08em", paddingTop: 2 }}>{label}</span>
+                  <span style={{ fontSize: 14, color: "#d4b060" }}>{value}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 20, padding: "16px 20px", background: "rgba(0,0,0,0.3)", borderRadius: 10, borderLeft: "2px solid #c9a84c" }}>
+              <p style={{ margin: 0, fontSize: 13, color: "#a08050", lineHeight: 1.6 }}>{marcha.descripcion}</p>
+            </div>
+            <div style={{ marginTop: 20, display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(marcha.titulo + " " + marcha.banda)}`} target="_blank" rel="noopener noreferrer" style={{ background: "#1a0804", border: "1px solid #8a1a1a", borderRadius: 8, padding: "10px 18px", color: "#ff6b6b", fontWeight: 700, textDecoration: "none", fontSize: 13 }}>▶ YouTube</a>
+              <a href={`https://open.spotify.com/search/${encodeURIComponent(marcha.titulo + " " + marcha.banda)}`} target="_blank" rel="noopener noreferrer" style={{ background: "#0a1a0a", border: "1px solid #1a6a1a", borderRadius: 8, padding: "10px 18px", color: "#1db954", fontWeight: 700, textDecoration: "none", fontSize: 13 }}>♫ Spotify</a>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function App() {
+      const [tab, setTab] = useState("escuchar");
+      const [escuchando, setEscuchando] = useState(false);
+      const [resultado, setResultado] = useState(null);
+      const [cargando, setCargando] = useState(false);
+      const [busqueda, setBusqueda] = useState("");
+      const [ciudadFiltro, setCiudadFiltro] = useState("Todas");
+      const [bandaFiltro, setBandaFiltro] = useState("Todas");
+      const [compositorFiltro, setCompositorFiltro] = useState("Todos");
+      const [tipoFiltro, setTipoFiltro] = useState("Todos");
+      const [marchaSeleccionada, setMarchaSeleccionada] = useState(null);
+      const [grabacionTexto, setGrabacionTexto] = useState("");
+      const mediaRecorderRef = useRef(null);
+      const chunksRef = useRef([]);
+      const timerRef = useRef(null);
+      const streamRef = useRef(null);
+      const mimeTypeRef = useRef("audio/webm");
+
+      const bandas = ["Todas", ...new Set(MARCHAS_DB.map(m => m.banda))].sort();
+      const compositores = ["Todos", ...new Set(MARCHAS_DB.map(m => m.compositor).filter(c => c !== "Varios autores" && c !== "Anónimo"))].sort();
+
+      const marchasFiltradas = MARCHAS_DB.filter(m => {
+        const q = busqueda.toLowerCase();
+        const matchBusqueda = !q || m.titulo.toLowerCase().includes(q) || m.compositor.toLowerCase().includes(q) || m.cofradia.toLowerCase().includes(q) || m.banda.toLowerCase().includes(q);
+        const matchCiudad = ciudadFiltro === "Todas" || m.ciudad === ciudadFiltro;
+        const matchBanda = bandaFiltro === "Todas" || m.banda === bandaFiltro;
+        const matchCompositor = compositorFiltro === "Todos" || m.compositor.includes(compositorFiltro);
+        const matchTipo = tipoFiltro === "Todos" || m.tipo === tipoFiltro;
+        return matchBusqueda && matchCiudad && matchBanda && matchCompositor && matchTipo;
+      });
+
+      async function iniciarEscucha() {
+        setResultado(null);
+        setGrabacionTexto("");
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          streamRef.current = stream;
+          const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/ogg";
+          mimeTypeRef.current = mimeType;
+          const mr = new MediaRecorder(stream, { mimeType });
+          mediaRecorderRef.current = mr;
+          chunksRef.current = [];
+          mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+          mr.start(100);
+          setEscuchando(true);
+          timerRef.current = setTimeout(() => pararGrabacion(), 15000);
+        } catch(e) {
+          setGrabacionTexto("No se pudo acceder al micrófono. Permite el acceso e inténtalo de nuevo.");
+        }
+      }
+
+      function pararGrabacion() {
+        clearTimeout(timerRef.current);
+        const mr = mediaRecorderRef.current;
+        if (!mr || mr.state === "inactive") return;
+        mr.onstop = async () => {
+          streamRef.current?.getTracks().forEach(t => t.stop());
+          setEscuchando(false);
+          setCargando(true);
+          setGrabacionTexto("Identificando marcha...");
+          const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current });
+          await identificarConACRCloud(blob);
+        };
+        mr.stop();
+      }
+
+      async function identificarConACRCloud(audioBlob) {
+        try {
+          const timestamp = Math.floor(Date.now() / 1000);
+          const stringToSign = `POST\n/v1/identify\n${ACR_ACCESS_KEY}\naudio\n1\n${timestamp}`;
+          const encoder = new TextEncoder();
+          const cryptoKey = await crypto.subtle.importKey("raw", encoder.encode(ACR_ACCESS_SECRET), { name: "HMAC", hash: "SHA-1" }, false, ["sign"]);
+          const signatureBuffer = await crypto.subtle.sign("HMAC", cryptoKey, encoder.encode(stringToSign));
+          const signature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
+
+          const formData = new FormData();
+          formData.append("sample", audioBlob, "sample.webm");
+          formData.append("access_key", ACR_ACCESS_KEY);
+          formData.append("data_type", "audio");
+          formData.append("signature_version", "1");
+          formData.append("signature", signature);
+          formData.append("sample_bytes", audioBlob.size.toString());
+          formData.append("timestamp", timestamp.toString());
+
+          const res = await fetch(`https://${ACR_HOST}/v1/identify`, { method: "POST", body: formData });
+          const data = await res.json();
+
+          if (data.status?.code === 0 && data.metadata?.music?.length > 0) {
+            const music = data.metadata.music[0];
+            const titulo = music.title || "Desconocido";
+            const artista = music.artists?.[0]?.name || music.composers?.[0]?.name || "Desconocido";
+            const score = music.score || 100;
+
+            // Buscar primero por título + banda (más preciso)
+            let marchaLocal = MARCHAS_DB.find(m =>
+              (m.titulo.toLowerCase().includes(titulo.toLowerCase()) ||
+              titulo.toLowerCase().includes(m.titulo.toLowerCase())) &&
+              (m.banda.toLowerCase().includes(artista.toLowerCase()) ||
+              artista.toLowerCase().includes(m.banda.toLowerCase()))
+            );
+
+            // Si no encuentra por título + banda, buscar solo por título
+            if (!marchaLocal) {
+              marchaLocal = MARCHAS_DB.find(m =>
+                m.titulo.toLowerCase().includes(titulo.toLowerCase()) ||
+                titulo.toLowerCase().includes(m.titulo.toLowerCase())
+              );
+            }
+            const spotifyUrl = music.external_metadata?.spotify?.track?.id
+              ? `https://open.spotify.com/track/${music.external_metadata.spotify.track.id}`
+              : null;
+            const youtubeUrl = music.external_metadata?.youtube?.vid
+              ? `https://www.youtube.com/watch?v=${music.external_metadata.youtube.vid}`
+              : null;
+            const busquedaYoutube = `https://www.youtube.com/results?search_query=${encodeURIComponent(titulo + " marcha procesional")}`;
+
+            if (marchaLocal) {
+              setResultado({ marcha: marchaLocal, confianza: score, razonamiento: `Identificada con ${score}% de confianza.`, spotifyUrl, youtubeUrl: youtubeUrl || busquedaYoutube });
+            } else {
+              setResultado({
+                marcha: { id: 0, titulo, compositor: artista, banda: music.album?.name || "—", cofradia: "—", año: music.release_date?.split("-")[0] || "—", ciudad: "—", descripcion: "Marcha identificada que aún no está en nuestro catálogo." },
+                confianza: score,
+                razonamiento: `Identificada con ${score}% de confianza. Aún no está en el catálogo.`,
+                spotifyUrl, youtubeUrl: youtubeUrl || busquedaYoutube
+              });
+            }
+          } else if (data.status?.code === 1001) {
+            setResultado({ marcha: null, razonamiento: "No se reconoció ninguna marcha. Acerca más el micrófono e inténtalo de nuevo." });
+          } else {
+            setResultado({ marcha: null, razonamiento: "No se pudo identificar. Inténtalo de nuevo." });
+          }
+        } catch {
+          setResultado({ marcha: null, razonamiento: "Error al conectar con el servicio. Comprueba tu conexión." });
+        }
+        setCargando(false);
+        setGrabacionTexto("");
+      }
+
+      // --- BASE DE DATOS DE BANDAS ---
+      const BANDAS_DB = [
+        { id: 1, nombre: "Banda de CC y TT Ntro. Padre Jesús Cautivo", ciudad: "Málaga", fundacion: 2009, componentes: 120, web: "https://bandacautivomalaga.com", instagram: "https://www.instagram.com/bandacautivomalaga/", facebook: "https://www.facebook.com/BandaCautivoMalaga/", twitter: "https://x.com/bandacautivomlg", descripcion: "Formación creada en 2009, compuesta por metales y percusión. Referente de la Semana Santa malagueña con su estilo trinitario y más de 120 componentes." },
+        { id: 2, nombre: "Agrupación Musical Virgen de los Reyes", ciudad: "Sevilla", fundacion: 1980, componentes: 160, web: "https://www.virgendelosreyes.es", instagram: "https://www.instagram.com/agrupacionvr/", facebook: "https://www.facebook.com/VirgenDeLosReyes/", twitter: "https://x.com/AgrupacionVR", descripcion: "Una de las agrupaciones más famosas de Sevilla con más de 200.000 seguidores. Fundada en 1980 en el seno de la Hermandad de Jesús Despojado." },
+        { id: 3, nombre: "Banda de CC y TT Archicofradía del Paso y la Esperanza", ciudad: "Málaga", fundacion: 0, componentes: 0, web: "https://www.bctlaesperanza.com", instagram: "https://www.instagram.com/bctpasoespe/", facebook: "https://www.facebook.com/bandaesperanzamalaga/", twitter: "https://x.com/bctpasoespe", descripcion: "Una de las formaciones más prestigiosas de la Semana Santa malagueña, con un extenso repertorio propio de grandes compositores." },
+        { id: 4, nombre: "Banda de CC y TT Ntra. Sra. del Rosario Coronada", ciudad: "Cádiz", fundacion: 1996, componentes: 0, web: "https://rosariodecadiz.com", instagram: "https://www.instagram.com/rosariodecadiz/", facebook: "https://www.facebook.com/Rosariodecadiz/", twitter: "https://x.com/RosariodeCadiz", descripcion: "Banda gaditana fundada en 1996, conocida internacionalmente. El Cádiz CF les rindió homenaje con una equipación oficial inspirada en su uniformidad." },
+        { id: 5, nombre: "Banda de CC y TT Stmo. Cristo de las Tres Caídas", ciudad: "Sevilla", fundacion: 0, componentes: 0, web: null, instagram: "https://www.instagram.com/trescaidasdetriana/", facebook: null, twitter: "https://x.com/3caidas_triana", descripcion: "Banda del Santísimo Cristo de las Tres Caídas de Triana, una de las formaciones más emblemáticas del barrio trianero de Sevilla." },
+        { id: 6, nombre: "Banda de CC y TT Ntra. Sra. de la Victoria (Las Cigarreras)", ciudad: "Sevilla", fundacion: 0, componentes: 0, web: null, instagram: null, facebook: null, twitter: null, descripcion: "Las Cigarreras, una de las bandas con más historia y repertorio de la Semana Santa sevillana, heredera del estilo de la banda gaditana Luz y Aguas." },
+        { id: 7, nombre: "Banda de CC y TT Real Cuerpo de Bomberos", ciudad: "Málaga", fundacion: 1911, componentes: 0, web: null, instagram: null, facebook: null, twitter: null, descripcion: "La banda madre de la Semana Santa malagueña, fundada en 1911. Creadora del estilo propio de cornetas y tambores malagueño de la mano del maestro Alberto Escámez." },
+        { id: 8, nombre: "Banda de CC y TT Carmen de Almería", ciudad: "Almería", fundacion: 0, componentes: 0, web: null, instagram: null, facebook: null, twitter: null, descripcion: "Banda de Cornetas y Tambores del Carmen de Almería, con un repertorio propio de gran calidad dedicado a cofradías de Almería y Jaén." },
+        { id: 9, nombre: "Banda de CC y TT Carmen de Málaga", ciudad: "Málaga", fundacion: 2005, componentes: 0, web: "https://bctcarmenmalaga.es", instagram: null, facebook: null, twitter: null, descripcion: "Fundada en 2005 en El Perchel, desde 2007 evoluciona como banda independiente consolidando un sonido referente de la Semana Santa de Málaga." },
+      ];
+
+      const [bandaDetalle, setBandaDetalle] = useState(null);
+
+      return (
+        <div style={{ minHeight: "100vh", background: "#0d0804", paddingBottom: 80 }}>
+          {/* Header */}
+          <div style={{ textAlign: "center", padding: "40px 24px 28px", borderBottom: "1px solid #1e1008" }}>
+            <div style={{ fontSize: 11, letterSpacing: "0.3em", color: "#6a4a2a", textTransform: "uppercase", marginBottom: 10 }}>Reconocimiento de marchas</div>
+            <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(40px, 10vw, 64px)", color: "#f0d080", letterSpacing: "-0.02em", lineHeight: 1, margin: 0 }}>Marcheando</h1>
+            <p style={{ margin: "12px 0 0", fontSize: 14, color: "#8a6a3a", fontStyle: "italic" }}>Identifica cualquier marcha procesional al instante</p>
+          </div>
+
+          <div style={{ maxWidth: 680, margin: "0 auto", padding: "28px 20px" }}>
+
+            {/* TAB ESCUCHAR */}
+            {tab === "escuchar" && (
+              <div style={{ animation: "fadeIn 0.4s ease" }}>
+                <div style={{ textAlign: "center", marginBottom: 32 }}>
+                  <button
+                    className="btn-mic"
+                    onClick={escuchando ? pararGrabacion : iniciarEscucha}
+                    disabled={cargando}
+                    style={{
+                      width: 160, height: 160,
+                      border: escuchando ? "3px solid #c9a84c" : "2px solid #3a2510",
+                      background: escuchando ? "radial-gradient(circle, #3a2010 0%, #1a0c04 100%)" : "radial-gradient(circle, #2a1808 0%, #150e04 100%)",
+                      animation: escuchando ? "pulse-gold 1.5s ease infinite" : "none",
+                      cursor: cargando ? "not-allowed" : "pointer",
+                      fontSize: 56,
+                      boxShadow: escuchando ? "0 0 40px rgba(201,168,76,0.3)" : "0 4px 24px rgba(0,0,0,0.5)",
+                    }}
+                  >
+                    {cargando ? <div className="spinner" /> : escuchando ? "⏹" : "🎙"}
+                  </button>
+
+                  <div style={{ marginTop: 20, height: 56, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" }}>
+                    {escuchando ? (
+                      <div>
+                        <WaveformAnimation active={true} />
+                        <p style={{ marginTop: 8, fontSize: 12, color: "#c9a84c", letterSpacing: "0.1em" }}>ESCUCHANDO... (pulsa para detener)</p>
+                      </div>
+                    ) : cargando ? (
+                      <p style={{ fontSize: 13, color: "#8a6a3a", fontStyle: "italic" }}>{grabacionTexto}</p>
+                    ) : (
+                      <div>
+                        <p style={{ fontSize: 15, color: "#a08050", marginBottom: 4 }}>Pulsa para identificar una marcha</p>
+                        <p style={{ fontSize: 12, color: "#8a6a3a", fontStyle: "italic" }}>Acerca el móvil a la música y escucha 15 segundos</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Última marcha identificada o placeholder */}
+                {!resultado && !escuchando && !cargando && (
+                  <div style={{ background: "#1a1008", border: "1px solid #3a2510", borderRadius: 14, padding: "20px 24px", marginBottom: 16 }}>
+                    <p style={{ margin: 0, fontSize: 12, color: "#c9a84c", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Marchas populares</p>
+                    {["La Madrugá", "Amarguras", "Pasan Los Campanilleros", "Cristo Del Amor"].map(titulo => {
+                      const m = MARCHAS_DB.find(x => x.titulo.toLowerCase() === titulo.toLowerCase());
+                      return m ? (
+                        <div key={titulo} onClick={() => setMarchaSeleccionada(m)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #2a1808", cursor: "pointer" }}>
+                          <span style={{ fontSize: 15, color: "#f0d080", fontFamily: "'Playfair Display', serif" }}>{m.titulo}</span>
+                          <span style={{ fontSize: 12, color: "#a08050", fontStyle: "italic" }}>{m.compositor}</span>
+                        </div>
+                      ) : null;
+                    })}
+                  </div>
+                )}
+
+                {resultado && (
+                  <div style={{ animation: "fadeIn 0.5s ease" }}>
+                    {resultado.marcha ? (
+                      <div style={{ background: "linear-gradient(135deg, #1a1008, #2a1a08)", border: "1px solid #c9a84c", borderRadius: 16, padding: "28px 32px", boxShadow: "0 0 40px rgba(201,168,76,0.1)", position: "relative", overflow: "hidden" }}>
+                        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at top left, rgba(201,168,76,0.05), transparent 60%)" }} />
+                        <div style={{ position: "relative" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                            <span style={{ fontSize: 11, color: "#c9a84c", letterSpacing: "0.2em", textTransform: "uppercase" }}>✓ Marcha identificada</span>
+                            <span style={{ fontSize: 12, color: "#8a6a3a" }}>Confianza: {resultado.confianza}%</span>
+                          </div>
+                          <h2 style={{ margin: "8px 0 4px", fontFamily: "'Playfair Display', serif", fontSize: 28, color: "#f0d080" }}>{resultado.marcha.titulo}</h2>
+                          <p style={{ margin: "0 0 16px", color: "#c9a84c", fontStyle: "italic" }}>{resultado.marcha.compositor} · {resultado.marcha.año}</p>
+                          <p style={{ margin: "0 0 20px", fontSize: 13, color: "#8a6a3a", fontStyle: "italic", lineHeight: 1.6 }}>{resultado.razonamiento}</p>
+                          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                            <button onClick={() => setMarchaSeleccionada(resultado.marcha)} style={{ background: "linear-gradient(135deg, #c9a84c, #8a6a2a)", border: "none", borderRadius: 8, padding: "10px 24px", color: "#0d0804", fontWeight: 700, cursor: "pointer", fontFamily: "'Crimson Text', serif", fontSize: 14 }}>Ver detalles</button>
+                            {resultado.youtubeUrl && (
+                              <a href={resultado.youtubeUrl} target="_blank" rel="noopener noreferrer" style={{ background: "#1a0804", border: "1px solid #8a1a1a", borderRadius: 8, padding: "10px 20px", color: "#ff6b6b", fontWeight: 700, cursor: "pointer", fontFamily: "'Crimson Text', serif", fontSize: 14, textDecoration: "none", display: "flex", alignItems: "center", gap: 6 }}>▶ YouTube</a>
+                            )}
+                            {resultado.spotifyUrl && (
+                              <a href={resultado.spotifyUrl} target="_blank" rel="noopener noreferrer" style={{ background: "#0a1a0a", border: "1px solid #1a6a1a", borderRadius: 8, padding: "10px 20px", color: "#1db954", fontWeight: 700, cursor: "pointer", fontFamily: "'Crimson Text', serif", fontSize: 14, textDecoration: "none", display: "flex", alignItems: "center", gap: 6 }}>♫ Spotify</a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ background: "#1a0c04", border: "1px solid #3a1510", borderRadius: 16, padding: "24px 28px", textAlign: "center" }}>
+                        <p style={{ margin: 0, color: "#8a4a3a", fontStyle: "italic" }}>{resultado.razonamiento}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB CATÁLOGO */}
+            {tab === "catalogo" && (
+              <div style={{ animation: "fadeIn 0.4s ease" }}>
+                {/* Búsqueda y filtros desplegables */}
+                <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+                  <input
+                    value={busqueda}
+                    onChange={e => setBusqueda(e.target.value)}
+                    placeholder="Buscar por título, compositor, cofradía..."
+                    style={{ flex: 1, minWidth: 200, background: "#120c04", border: "1px solid #2a1808", borderRadius: 10, padding: "12px 16px", color: "#d4b060", fontSize: 14, fontFamily: "'Crimson Text', serif", outline: "none" }}
+                    onFocus={e => e.target.style.borderColor = "#c9a84c"}
+                    onBlur={e => e.target.style.borderColor = "#2a1808"}
+                  />
+                  <select value={ciudadFiltro} onChange={e => setCiudadFiltro(e.target.value)} style={{ background: "#120c04", border: "1px solid #2a1808", borderRadius: 10, padding: "12px 16px", color: "#d4b060", fontSize: 14, fontFamily: "'Crimson Text', serif", outline: "none", cursor: "pointer" }}>
+                    {ciudades.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+                  <select value={compositorFiltro} onChange={e => setCompositorFiltro(e.target.value)} style={{ flex: 1, background: "#120c04", border: "1px solid #2a1808", borderRadius: 10, padding: "12px 16px", color: "#d4b060", fontSize: 14, fontFamily: "'Crimson Text', serif", outline: "none", cursor: "pointer" }}>
+                    {compositores.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                {/* Botones rápidos por tipo */}
+                <div style={{ marginBottom: 12 }}>
+                  <p style={{ fontSize: 11, color: "#6a4a2a", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>Tipo de formación</p>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {[{ id: "Todos", label: "Todas" }, { id: "CCT", label: "🥁 CC y TT" }, { id: "AM", label: "🎵 Agrupación Musical" }, { id: "BM", label: "🎼 Banda de Música" }].map(t => (
+                      <button key={t.id} onClick={() => setTipoFiltro(t.id)} style={{
+                        fontSize: 12, padding: "6px 14px", borderRadius: 20, border: "1px solid",
+                        borderColor: tipoFiltro === t.id ? "#c9a84c" : "#2a1808",
+                        background: tipoFiltro === t.id ? "linear-gradient(135deg, #c9a84c, #8a6a2a)" : "#120c04",
+                        color: tipoFiltro === t.id ? "#0d0804" : "#8a6a3a",
+                        cursor: "pointer", fontFamily: "'Crimson Text', serif",
+                        fontWeight: tipoFiltro === t.id ? 700 : 400,
+                        transition: "all 0.2s",
+                      }}>{t.label}</button>
+                    ))}
+                  </div>
+                </div>
+                {/* Botones rápidos por banda */}
+                <div style={{ marginBottom: 16 }}>
+                  <p style={{ fontSize: 11, color: "#6a4a2a", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>Filtrar por banda</p>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {bandas.map(b => (
+                      <button key={b} onClick={() => setBandaFiltro(b)} style={{
+                        fontSize: 11, padding: "5px 12px", borderRadius: 20, border: "1px solid",
+                        borderColor: bandaFiltro === b ? "#c9a84c" : "#2a1808",
+                        background: bandaFiltro === b ? "linear-gradient(135deg, #c9a84c, #8a6a2a)" : "#120c04",
+                        color: bandaFiltro === b ? "#0d0804" : "#8a6a3a",
+                        cursor: "pointer", fontFamily: "'Crimson Text', serif",
+                        fontWeight: bandaFiltro === b ? 700 : 400,
+                        transition: "all 0.2s",
+                      }}>
+                        {b === "Todas" ? "Todas" : b.replace("Banda de CC y TT ", "").replace("Banda de Música ", "").replace("Banda Sinfónica ", "").replace("Agrupación Musical ", "AM ")}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {/* Contador y botón limpiar */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                  <div style={{ fontSize: 12, color: "#6a4a2a", letterSpacing: "0.05em" }}>
+                    {marchasFiltradas.length} marcha{marchasFiltradas.length !== 1 ? "s" : ""} encontrada{marchasFiltradas.length !== 1 ? "s" : ""}
+                  </div>
+                  {(bandaFiltro !== "Todas" || compositorFiltro !== "Todos" || ciudadFiltro !== "Todas" || busqueda || tipoFiltro !== "Todos") && (
+                    <button onClick={() => { setBandaFiltro("Todas"); setCompositorFiltro("Todos"); setCiudadFiltro("Todas"); setBusqueda(""); setTipoFiltro("Todos"); }} style={{ fontSize: 11, color: "#c9a84c", background: "none", border: "1px solid #3a2510", borderRadius: 8, padding: "4px 12px", cursor: "pointer", fontFamily: "'Crimson Text', serif" }}>
+                      ✕ Limpiar filtros
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: "grid", gap: 12 }}>
+                  {marchasFiltradas.map(m => <MarchaCard key={m.id} marcha={m} onSelect={setMarchaSeleccionada} />)}
+                  {marchasFiltradas.length === 0 && (
+                    <div style={{ textAlign: "center", padding: "48px 0", color: "#4a3020", fontStyle: "italic" }}>No se encontraron marchas con ese criterio</div>
+                  )}
+                </div>
+              </div>
+            )}
+            {/* TAB BANDAS */}
+            {tab === "bandas" && (
+              <div style={{ animation: "fadeIn 0.4s ease" }}>
+                <p style={{ color: "#8a6a3a", fontSize: 15, fontStyle: "italic", marginBottom: 24, textAlign: "center" }}>
+                  Directorio de bandas procesionales de Andalucía
+                </p>
+                <div style={{ display: "grid", gap: 12 }}>
+                  {BANDAS_DB.map(banda => (
+                    <div key={banda.id} onClick={() => setBandaDetalle(banda)} className="marcha-card">
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                        <h3 style={{ margin: 0, fontFamily: "'Playfair Display', serif", fontSize: 16, color: "#f0d080", fontWeight: 700 }}>{banda.nombre}</h3>
+                        {banda.fundacion > 0 && <span style={{ fontSize: 11, color: "#8a6a3a", fontFamily: "monospace", background: "#120c04", padding: "2px 8px", borderRadius: 4, whiteSpace: "nowrap" }}>{banda.fundacion}</span>}
+                      </div>
+                      <p style={{ margin: "0 0 10px", fontSize: 13, color: "#a08050", lineHeight: 1.5 }}>{banda.descripcion.substring(0, 100)}...</p>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 11, color: "#6a4a2a", background: "#200e04", padding: "2px 10px", borderRadius: 20, border: "1px solid #3a2510" }}>{banda.ciudad}</span>
+                        {banda.web && <span style={{ fontSize: 11, color: "#6a4a2a", background: "#200e04", padding: "2px 10px", borderRadius: 20, border: "1px solid #3a2510" }}>🌐 Web</span>}
+                        {banda.instagram && <span style={{ fontSize: 11, color: "#6a4a2a", background: "#200e04", padding: "2px 10px", borderRadius: 20, border: "1px solid #3a2510" }}>📷 Instagram</span>}
+                        <span style={{ fontSize: 11, color: "#c9a84c", background: "#200e04", padding: "2px 10px", borderRadius: 20, border: "1px solid #3a2510" }}>
+                          {MARCHAS_DB.filter(m => m.banda === banda.nombre).length} marchas
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* MODAL DETALLE BANDA */}
+          {bandaDetalle && (
+            <div className="overlay" onClick={() => setBandaDetalle(null)}>
+              <div className="modal" onClick={e => e.stopPropagation()}>
+                <div style={{ position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)", width: 80, height: 2, background: "linear-gradient(90deg, transparent, #c9a84c, transparent)", borderRadius: 1 }} />
+                <button onClick={() => setBandaDetalle(null)} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", color: "#8a6a3a", fontSize: 22, cursor: "pointer" }}>✕</button>
+                <div style={{ textAlign: "center", marginBottom: 24 }}>
+                  <div style={{ fontSize: 40, marginBottom: 8 }}>🎺</div>
+                  <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, color: "#f0d080", lineHeight: 1.3 }}>{bandaDetalle.nombre}</h2>
+                  <p style={{ margin: "8px 0 0", color: "#c9a84c", fontSize: 14 }}>{bandaDetalle.ciudad}{bandaDetalle.fundacion > 0 ? ` · Desde ${bandaDetalle.fundacion}` : ""}</p>
+                </div>
+                <div style={{ padding: "14px 18px", background: "rgba(0,0,0,0.3)", borderRadius: 10, borderLeft: "2px solid #c9a84c", marginBottom: 20 }}>
+                  <p style={{ margin: 0, fontSize: 13, color: "#a08050", lineHeight: 1.6 }}>{bandaDetalle.descripcion}</p>
+                </div>
+                <div style={{ marginBottom: 20 }}>
+                  <p style={{ fontSize: 12, color: "#6a4a2a", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>En el catálogo</p>
+                  <p style={{ fontSize: 14, color: "#d4b060" }}>{MARCHAS_DB.filter(m => m.banda === bandaDetalle.nombre).length} marchas registradas</p>
+                </div>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  {bandaDetalle.web && <a href={bandaDetalle.web} target="_blank" rel="noopener noreferrer" style={{ background: "linear-gradient(135deg, #c9a84c, #8a6a2a)", border: "none", borderRadius: 8, padding: "10px 18px", color: "#0d0804", fontWeight: 700, textDecoration: "none", fontSize: 13 }}>🌐 Web oficial</a>}
+                  {bandaDetalle.instagram && <a href={bandaDetalle.instagram} target="_blank" rel="noopener noreferrer" style={{ background: "#1a0814", border: "1px solid #6a1a4a", borderRadius: 8, padding: "10px 18px", color: "#e040a0", fontWeight: 700, textDecoration: "none", fontSize: 13 }}>📷 Instagram</a>}
+                  {bandaDetalle.facebook && <a href={bandaDetalle.facebook} target="_blank" rel="noopener noreferrer" style={{ background: "#0a0a1a", border: "1px solid #1a3a8a", borderRadius: 8, padding: "10px 18px", color: "#4080e0", fontWeight: 700, textDecoration: "none", fontSize: 13 }}>👍 Facebook</a>}
+                  {bandaDetalle.twitter && <a href={bandaDetalle.twitter} target="_blank" rel="noopener noreferrer" style={{ background: "#0a0a0a", border: "1px solid #4a4a4a", borderRadius: 8, padding: "10px 18px", color: "#e0e0e0", fontWeight: 700, textDecoration: "none", fontSize: 13 }}>𝕏 Twitter</a>}
+                  <button onClick={() => { setBandaDetalle(null); setTab("catalogo"); }} style={{ background: "#1a1008", border: "1px solid #3a2510", borderRadius: 8, padding: "10px 18px", color: "#c9a84c", fontWeight: 700, cursor: "pointer", fontFamily: "'Crimson Text', serif", fontSize: 13 }}>📖 Ver sus marchas</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {marchaSeleccionada && <MarchaDetail marcha={marchaSeleccionada} onClose={() => setMarchaSeleccionada(null)} />}
+
+          {/* Pie de página */}
+          <div style={{ textAlign: "center", padding: "24px", borderTop: "1px solid #1e1008", marginTop: 20, marginBottom: 10 }}>
+            <p style={{ margin: 0, fontSize: 11, color: "#a08050", letterSpacing: "0.1em" }}>MARCHEANDO · PASIÓN · TRADICIÓN · MÚSICA PROCESIONAL</p>
+          </div>
+
+          {/* Barra de navegación fija abajo */}
+          <div style={{
+            position: "fixed", bottom: 0, left: 0, right: 0,
+            background: "linear-gradient(to top, #0a0604, #120c04)",
+            borderTop: "1px solid #1e1008",
+            display: "flex", justifyContent: "space-around", alignItems: "center",
+            padding: "10px 0 16px",
+            zIndex: 50,
+          }}>
+            {[
+              { id: "escuchar", label: "Escuchar", icon: "🎙" },
+              { id: "catalogo", label: "Catálogo", icon: "📖" },
+              { id: "bandas", label: "Bandas", icon: "🎺" }
+            ].map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)} style={{
+                background: "none", border: "none", cursor: "pointer",
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+                padding: "6px 20px",
+              }}>
+                <span style={{ fontSize: 22 }}>{t.icon}</span>
+                <span style={{
+                  fontSize: 10, letterSpacing: "0.05em",
+                  color: tab === t.id ? "#c9a84c" : "#4a3020",
+                  fontFamily: "'Crimson Text', serif",
+                  fontWeight: tab === t.id ? 700 : 400,
+                  textTransform: "uppercase",
+                }}>{t.label}</span>
+                {tab === t.id && <div style={{ width: 20, height: 2, background: "#c9a84c", borderRadius: 1 }} />}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
