@@ -605,7 +605,7 @@
           formData.append("sample_bytes", audioBlob.size.toString());
           formData.append("timestamp", timestamp.toString());
 
-          const res = await fetch(`https://${ACR_HOST}/v1/identify`, { method: "POST", body: formData });
+          const res = await fetch(`https://marcheando-proxy.juanochesco.workers.dev/`, { method: "POST", body: formData });
           const data = await res.json();
 
           if (data.status?.code === 0 && data.metadata?.music?.length > 0) {
