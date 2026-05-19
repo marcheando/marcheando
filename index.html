@@ -50,7 +50,7 @@
     .wave-bar.active-9 { animation: wave9 1.03s ease-in-out infinite alternate; }
     .wave-bar.active-10 { animation: wave10 1.1s ease-in-out infinite alternate; }
     .wave-bar.active-11 { animation: wave11 1.17s ease-in-out infinite alternate; }
-    .marcha-card { background: linear-gradient(135deg, #1a1008 0%, #2a1a0a 100%); border: 1px solid #3a2510; border-radius: 12px; padding: 18px 22px; cursor: pointer; transition: all 0.25s ease; position: relative; overflow: hidden; }
+    .marcha-card { background: linear-gradient(135deg, #2a1a0a 0%, #3a2510 100%); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 18px 22px; cursor: pointer; transition: all 0.25s ease; position: relative; overflow: hidden; }
     .marcha-card:hover { border-color: #c9a84c; transform: translateY(-2px); box-shadow: 0 8px 32px rgba(201,168,76,0.15); }
     .btn-tab { padding: 10px 28px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-family: 'Crimson Text', serif; transition: all 0.2s; }
     .btn-mic { width: 120px; height: 120px; border-radius: 50%; cursor: pointer; font-size: 42px; transition: all 0.3s; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
@@ -490,8 +490,8 @@
             <h3 style={{ margin: 0, fontFamily: "'Playfair Display', serif", fontSize: 17, color: "#f0d080", fontWeight: 700 }}>{marcha.titulo}</h3>
             <span style={{ fontSize: 11, color: "#8a6a3a", fontFamily: "monospace", background: "#120c04", padding: "2px 8px", borderRadius: 4 }}>{marcha.año > 0 ? marcha.año : "—"}</span>
           </div>
-          <p style={{ margin: "0 0 6px", fontSize: 12, color: "#c9a84c", fontStyle: "italic" }}>{marcha.compositor}</p>
-          <p style={{ margin: "0 0 4px", fontSize: 12, color: "#a08050" }}>{marcha.tipo === "BM" ? "Repertorio general" : marcha.banda}</p>
+          <p style={{ margin: "0 0 6px", fontSize: 12, color: "#e8c870", fontStyle: "italic" }}>{marcha.compositor}</p>
+          <p style={{ margin: "0 0 4px", fontSize: 12, color: "#d4a060" }}>{marcha.tipo === "BM" ? "Repertorio general" : marcha.banda}</p>
           <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
             <span style={{ fontSize: 11, color: tipoColor, background: "#200e04", padding: "2px 10px", borderRadius: 20, border: `1px solid ${tipoColor}` }}>{tipoLabel}</span>
             <span style={{ fontSize: 11, color: "#6a4a2a", background: "#200e04", padding: "2px 10px", borderRadius: 20, border: "1px solid #3a2510" }}>{marcha.ciudad}</span>
