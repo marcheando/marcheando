@@ -895,9 +895,6 @@
                   {(bandaFiltro !== "Todas" || compositorFiltro !== "Todos" || ciudadFiltro !== "Todas" || busqueda || tipoFiltro !== "Todos" || propiaFiltro !== "Todas") && (
                     <button onClick={() => { setBandaFiltro("Todas"); setCompositorFiltro("Todos"); setCiudadFiltro("Todas"); setBusqueda(""); setTipoFiltro("Todos"); setPropiaFiltro("Todas"); }} style={{ fontSize: 11, color: "#c9a84c", background: "none", border: "1px solid #3a2510", borderRadius: 8, padding: "4px 12px", cursor: "pointer", fontFamily: "'Crimson Text', serif" }}>✕ Limpiar filtros</button>
                   )}
-                      ✕ Limpiar filtros
-                    </button>
-                  )}
                 </div>
                 <div style={{ display: "grid", gap: 12 }}>
                   {marchasFiltradas.map(m => <MarchaCard key={m.id} marcha={m} onSelect={setMarchaSeleccionada} />)}
@@ -1036,4 +1033,3 @@
   </script>
 </body>
 </html>
- 
