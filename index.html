@@ -913,6 +913,8 @@
 
       async function identificarConACRCloud(audioBlob) {
         try {
+          console.log('🎙 Audio blob size:', audioBlob.size, 'type:', audioBlob.type);
+          
           const timestamp = Math.floor(Date.now() / 1000);
           const stringToSign = `POST\n/v1/identify\n${ACR_ACCESS_KEY}\naudio\n1\n${timestamp}`;
           const encoder = new TextEncoder();
@@ -921,7 +923,7 @@
           const signature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
 
           const formData = new FormData();
-          formData.append("sample", audioBlob, "sample.webm");
+          formData.append("sample", audioBlob, "sample.wav");
           formData.append("access_key", ACR_ACCESS_KEY);
           formData.append("data_type", "audio");
           formData.append("signature_version", "1");
@@ -929,8 +931,11 @@
           formData.append("sample_bytes", audioBlob.size.toString());
           formData.append("timestamp", timestamp.toString());
 
+          console.log('📤 Enviando a proxy...', timestamp);
           const res = await fetch(`https://marcheando-proxy.juanochesco.workers.dev/`, { method: "POST", body: formData });
+          console.log('📥 Respuesta status:', res.status);
           const data = await res.json();
+          console.log('📊 Respuesta ACRCloud:', JSON.stringify(data));
 
           if (data.status?.code === 0 && data.metadata?.music?.length > 0) {
             const music = data.metadata.music[0];
