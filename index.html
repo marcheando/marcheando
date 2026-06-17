@@ -891,7 +891,7 @@
           mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
           mr.start(100);
           setEscuchando(true);
-          timerRef.current = setTimeout(() => pararGrabacion(), 15000);
+          timerRef.current = setTimeout(() => pararGrabacion(), 30000);
         } catch(e) {
           setGrabacionTexto("No se pudo acceder al micrófono. Permite el acceso e inténtalo de nuevo.");
         }
@@ -1107,7 +1107,7 @@
                     ) : (
                       <div>
                         <p style={{ fontSize: 18, color: "#f0d080", fontWeight: 700, marginBottom: 6 }}>👆 PULSA PARA IDENTIFICAR</p>
-                        <p style={{ fontSize: 13, color: "#c9a84c", fontStyle: "italic" }}>Acerca el móvil a la música · 15 segundos</p>
+                        <p style={{ fontSize: 13, color: "#c9a84c", fontStyle: "italic" }}>Acerca el móvil a la música · 30 segundos</p>
                       </div>
                     )}
                   </div>
