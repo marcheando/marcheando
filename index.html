@@ -1092,7 +1092,7 @@
                       transition: "all 0.3s ease",
                     }}
                   >
-                    {cargando ? <div className="spinner" /> : escuchando ? (<span style={{ fontSize: 72 }}>⏹</span>) : (<span style={{ fontSize: 72 }}>🎙</span>)}
+                    {cargando ? <div className="spinner" /> : escuchando ? (<span style={{ fontSize: 72 }}>⏹</span>) : (<span style={{ fontSize: 72, filter: "drop-shadow(0 0 0 #f0d080) drop-shadow(0 0 8px rgba(240,208,128,0.6))", WebkitTextFillColor: "#f0d080" }}>🎙</span>)}
                   </button>
 
                   <div style={{ marginTop: 20, height: 56, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" }}>
