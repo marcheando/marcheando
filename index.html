@@ -775,6 +775,25 @@
       );
     }
 
+
+    function AdBanner({ label }) {
+      return (
+        <div style={{
+          background: "linear-gradient(135deg, #2a2a2a, #1a1a1a)",
+          border: "1px dashed #555",
+          borderRadius: 10,
+          padding: "16px",
+          textAlign: "center",
+          margin: "16px 0",
+        }}>
+          <p style={{ margin: 0, fontSize: 10, color: "#777", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>Publicidad</p>
+          <div style={{ background: "#0a0a0a", borderRadius: 6, padding: "20px", color: "#666", fontSize: 12 }}>
+            📢 {label}
+          </div>
+        </div>
+      );
+    }
+
     function MarchaCard({ marcha, onSelect }) {
       const tipoColor = marcha.tipo === "BM" ? "#4a6a8a" : marcha.tipo === "AM" ? "#6a4a8a" : "#6a4a2a";
       const tipoLabel = marcha.tipo === "BM" ? "Banda de Música" : marcha.tipo === "AM" ? "Agrupación Musical" : "CC y TT";
@@ -1193,6 +1212,7 @@
                         <p style={{ margin: 0, color: "#8a4a3a", fontStyle: "italic" }}>{resultado.razonamiento}</p>
                       </div>
                     )}
+                    <AdBanner label="Banner 320x100 - Tras identificar" />
                   </div>
                 )}
               </div>
@@ -1283,7 +1303,12 @@
                   )}
                 </div>
                 <div style={{ display: "grid", gap: 12 }}>
-                  {marchasFiltradas.map(m => <MarchaCard key={m.id} marcha={m} onSelect={setMarchaSeleccionada} />)}
+                  {marchasFiltradas.map((m, i) => (
+                    <React.Fragment key={m.id}>
+                      <MarchaCard marcha={m} onSelect={setMarchaSeleccionada} />
+                      {(i + 1) % 6 === 0 && <AdBanner label="Banner 320x100 - Catálogo" />}
+                    </React.Fragment>
+                  ))}
                   {marchasFiltradas.length === 0 && (
                     <div style={{ textAlign: "center", padding: "48px 0", color: "#4a3020", fontStyle: "italic" }}>No se encontraron marchas con ese criterio</div>
                   )}
