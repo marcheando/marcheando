@@ -963,15 +963,43 @@
             const artista = music.artists?.[0]?.name || music.composers?.[0]?.name || "Desconocido";
             const score = music.score || 100;
 
-            // Buscar primero por título + banda (más preciso)
-            let marchaLocal = MARCHAS_DB.find(m =>
-              (m.titulo.toLowerCase().includes(titulo.toLowerCase()) ||
-              titulo.toLowerCase().includes(m.titulo.toLowerCase())) &&
-              (m.banda.toLowerCase().includes(artista.toLowerCase()) ||
-              artista.toLowerCase().includes(m.banda.toLowerCase()))
-            );
+            // Extraer metadata personalizado (Banda, Autor, etc.)
+            const customFiles = data.metadata?.custom_files?.[0] || {};
+            const bandaCustom = customFiles.Banda || "";
+            const tituloCustom = customFiles.titulo || titulo;
 
-            // Si no encuentra por título + banda, buscar solo por título
+            console.log('🎯 Metadata personalizado:', JSON.stringify(customFiles));
+
+            // Buscar primero por título personalizado + banda personalizada (más preciso)
+            let marchaLocal = null;
+
+            if (bandaCustom && tituloCustom) {
+              marchaLocal = MARCHAS_DB.find(m =>
+                m.titulo.toLowerCase() === tituloCustom.toLowerCase() &&
+                m.banda.toLowerCase().includes(bandaCustom.toLowerCase())
+              );
+            }
+
+            // Si no, buscar por título ACRCloud + banda personalizada
+            if (!marchaLocal && bandaCustom) {
+              marchaLocal = MARCHAS_DB.find(m =>
+                (m.titulo.toLowerCase().includes(titulo.toLowerCase()) ||
+                titulo.toLowerCase().includes(m.titulo.toLowerCase())) &&
+                m.banda.toLowerCase().includes(bandaCustom.toLowerCase())
+              );
+            }
+
+            // Si no, buscar solo por título + artista
+            if (!marchaLocal) {
+              marchaLocal = MARCHAS_DB.find(m =>
+                (m.titulo.toLowerCase().includes(titulo.toLowerCase()) ||
+                titulo.toLowerCase().includes(m.titulo.toLowerCase())) &&
+                (m.banda.toLowerCase().includes(artista.toLowerCase()) ||
+                artista.toLowerCase().includes(m.banda.toLowerCase()))
+              );
+            }
+
+            // Si no, buscar solo por título
             if (!marchaLocal) {
               marchaLocal = MARCHAS_DB.find(m =>
                 m.titulo.toLowerCase().includes(titulo.toLowerCase()) ||
