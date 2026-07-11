@@ -239,7 +239,7 @@
       { id: 554, titulo: "Al compás de la Laguna", propia: "propia", tipo: "AM", banda: "Agrupación Musical Virgen de los Reyes", cofradia: "Varias", compositor: "Varios autores", año: 0, ciudad: "Sevilla", descripcion: "Marcha del repertorio de la Agrupación Musical Virgen de los Reyes." },
       { id: 555, titulo: "El León de Judá", propia: "propia", tipo: "AM", banda: "Agrupación Musical Virgen de los Reyes", cofradia: "Varias", compositor: "José María Sánchez Martín", año: 0, ciudad: "Sevilla", descripcion: "Marcha propia de la Agrupación Musical Virgen de los Reyes compuesta por José María Sánchez Martín." },
       { id: 556, titulo: "Soy el camino", propia: "propia", tipo: "AM", banda: "Agrupación Musical Virgen de los Reyes", cofradia: "Varias", compositor: "Javier Cebrero", año: 0, ciudad: "Sevilla", descripcion: "Marcha propia de la Agrupación Musical Virgen de los Reyes compuesta por Javier Cerrero." },
-      { id: 557, titulo: "Julia", propia: "propia", tipo: "AM", banda: "Agrupación Musical Virgen de los Reyes", cofradia: "Varias", compositor: "Alberto González", año: 0, ciudad: "Sevilla", descripcion: "Marcha propia de la Agrupación Musical Virgen de los Reyes compuesta por Alberto González." },
+      { id: 960, titulo: "Julia", propia: "propia", tipo: "AM", banda: "Agrupación Musical Virgen de los Reyes", cofradia: "Varias", compositor: "Alberto González", año: 0, ciudad: "Sevilla", descripcion: "Marcha propia de la Agrupación Musical Virgen de los Reyes compuesta por Alberto González." },
       { id: 148, titulo: "Ego Sum Lux Mundi", propia: "propia", tipo: "CCT", banda: "Banda de CC y TT Carmen de Málaga", cofradia: "Varias", compositor: "Sergio Pastor González", año: 0, ciudad: "Sevilla", descripcion: "Marcha procesional compuesta por Sergio Pastor González para la Banda de CC y TT Carmen de Málaga." },
       // --- Banda de CC y TT Carmen (Almería) ---
       { id: 151, titulo: "Al pie de tu Cruz", propia: "propia", tipo: "CCT", banda: "Banda de CC y TT Carmen de Almería", cofradia: "Congregación del Santo Sepulcro de Jaén", compositor: "Daniel Barranco Ortega", año: 2022, ciudad: "Almería", descripcion: "Dedicada a la Congregación del Santo Sepulcro de Jaén, compuesta por Daniel Barranco Ortega." },
@@ -1167,7 +1167,7 @@
                     {/* Últimas añadidas */}
                     <div style={{ background: "#1a1008", border: "1px solid #3a2510", borderRadius: 14, padding: "18px 22px" }}>
                       <p style={{ margin: "0 0 12px", fontSize: 12, color: "#c9a84c", letterSpacing: "0.1em", textTransform: "uppercase" }}>🆕 Últimas marchas añadidas</p>
-                      {MARCHAS_DB.slice(-5).reverse().map((m, i) => (
+                      {[...MARCHAS_DB].sort((a, b) => b.id - a.id).slice(0, 5).map((m, i) => (
                         <div key={i} onClick={() => setMarchaSeleccionada(m)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #2a1808", cursor: "pointer" }}>
                           <span style={{ fontSize: 16, color: "#c9a84c", fontWeight: 700, minWidth: 24, textAlign: "center" }}>🎵</span>
                           <div style={{ flex: 1 }}>
